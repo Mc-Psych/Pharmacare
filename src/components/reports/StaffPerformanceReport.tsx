@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { User, Sale } from '../../types';
 import { safeFixed } from '../../utils/formatters';
-import { printStructuredReport } from '../../utils/printReport';
+import { PrintReportOptions, printStructuredReport } from '../../utils/printReport';
+import { ReportPrintModal } from '../common/ReportPrintModal';
 import {
   Users,
   Award,
@@ -45,6 +46,8 @@ export const StaffPerformanceReport: React.FC<StaffPerformanceReportProps> = ({
   const [selectedRoleFilter, setSelectedRoleFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedStaffDetail, setSelectedStaffDetail] = useState<any | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printModalOptions, setPrintModalOptions] = useState<PrintReportOptions | null>(null);
 
   // Filter sales based on selected date range
   const filteredSales = useMemo(() => {
@@ -231,7 +234,7 @@ export const StaffPerformanceReport: React.FC<StaffPerformanceReportProps> = ({
 
     const totalStaffTxns = staffStats.reduce((sum, s) => sum + s.totalTxns, 0);
 
-    printStructuredReport({
+    const reportConfig: PrintReportOptions = {
       title: 'Staff Sales & Dispensing Productivity Audit',
       subtitle: 'Individual employee throughput, revenue share contribution, and prescription fulfillment efficiency',
       pharmacySettings: settings,
@@ -255,7 +258,10 @@ export const StaffPerformanceReport: React.FC<StaffPerformanceReportProps> = ({
       showSignOff: true,
       signOffTitle: 'Superintendent Pharmacist / HR Supervisor Sign-off',
       signOffRole: 'Superintendent Pharmacist'
-    });
+    };
+
+    setPrintModalOptions(reportConfig);
+    setIsPrintModalOpen(true);
   };
 
   return (
@@ -692,6 +698,13 @@ export const StaffPerformanceReport: React.FC<StaffPerformanceReportProps> = ({
           </div>
         </div>
       )}
+
+      {/* Print & PDF Modal */}
+      <ReportPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        options={printModalOptions}
+      />
     </div>
   );
 };

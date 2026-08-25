@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { safeFixed } from '../../utils/formatters';
-import { printStructuredReport } from '../../utils/printReport';
+import { PrintReportOptions, printStructuredReport } from '../../utils/printReport';
+import { ReportPrintModal } from '../common/ReportPrintModal';
 import {
   FileText,
   Printer,
@@ -29,6 +30,8 @@ export const ExecutiveSummaryReport: React.FC<ExecutiveSummaryReportProps> = ({
   customEndDate
 }) => {
   const { sales, returns, medicines, batches, users, settings, currentUser } = usePharmacy();
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printModalOptions, setPrintModalOptions] = useState<PrintReportOptions | null>(null);
 
   // Filter Sales
   const filteredSales = useMemo(() => {
@@ -105,7 +108,7 @@ export const ExecutiveSummaryReport: React.FC<ExecutiveSummaryReportProps> = ({
       ];
     });
 
-    printStructuredReport({
+    const reportConfig: PrintReportOptions = {
       title: 'Executive Financial & Operational Summary Report',
       subtitle: 'Combined regulatory audit brief for pharmacy board, superintendent & Ghana Pharmacy Council compliance',
       pharmacySettings: settings,
@@ -151,7 +154,10 @@ export const ExecutiveSummaryReport: React.FC<ExecutiveSummaryReportProps> = ({
       showSignOff: true,
       signOffTitle: 'Superintendent Pharmacist & Managing Director Approval',
       signOffRole: 'Superintendent Pharmacist / Board of Directors'
-    });
+    };
+
+    setPrintModalOptions(reportConfig);
+    setIsPrintModalOpen(true);
   };
 
   return (
@@ -339,6 +345,13 @@ export const ExecutiveSummaryReport: React.FC<ExecutiveSummaryReportProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Print & PDF Modal */}
+      <ReportPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        options={printModalOptions}
+      />
     </div>
   );
 };

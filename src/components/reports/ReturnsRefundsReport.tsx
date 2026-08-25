@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { ReturnOrder, ReturnItem } from '../../types';
 import { safeFixed } from '../../utils/formatters';
-import { printStructuredReport } from '../../utils/printReport';
+import { PrintReportOptions, printStructuredReport } from '../../utils/printReport';
+import { ReportPrintModal } from '../common/ReportPrintModal';
 import {
   RotateCcw,
   AlertTriangle,
@@ -44,6 +45,8 @@ export const ReturnsRefundsReport: React.FC<ReturnsRefundsReportProps> = ({
   const [selectedReasonFilter, setSelectedReasonFilter] = useState('all');
   const [selectedRestockFilter, setSelectedRestockFilter] = useState('all');
   const [selectedReturnDetail, setSelectedReturnDetail] = useState<ReturnOrder | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printModalOptions, setPrintModalOptions] = useState<PrintReportOptions | null>(null);
 
   // Filter returns by selected date range
   const filteredReturns = useMemo(() => {
@@ -263,7 +266,7 @@ export const ReturnsRefundsReport: React.FC<ReturnsRefundsReportProps> = ({
       ];
     });
 
-    printStructuredReport({
+    const reportConfig: PrintReportOptions = {
       title: 'Sales Returns & Refunds Audit Report',
       subtitle: 'Official incident audit of returned medications, refund reconciliations, and inventory restock disposition',
       pharmacySettings: settings,
@@ -293,7 +296,10 @@ export const ReturnsRefundsReport: React.FC<ReturnsRefundsReportProps> = ({
       showSignOff: true,
       signOffTitle: 'Clinical Quality & Pharmacovigilance Sign-off',
       signOffRole: 'Quality Assurance / Superintendent Pharmacist'
-    });
+    };
+
+    setPrintModalOptions(reportConfig);
+    setIsPrintModalOpen(true);
   };
 
   return (
@@ -746,6 +752,13 @@ export const ReturnsRefundsReport: React.FC<ReturnsRefundsReportProps> = ({
           </div>
         </div>
       )}
+
+      {/* Print & PDF Modal */}
+      <ReportPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        options={printModalOptions}
+      />
     </div>
   );
 };

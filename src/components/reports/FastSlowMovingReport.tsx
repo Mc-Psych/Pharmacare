@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { Medicine, MedicineBatch } from '../../types';
 import { safeFixed } from '../../utils/formatters';
-import { printStructuredReport } from '../../utils/printReport';
+import { PrintReportOptions, printStructuredReport } from '../../utils/printReport';
+import { ReportPrintModal } from '../common/ReportPrintModal';
 import {
   Zap,
   Clock,
@@ -39,6 +40,8 @@ export const FastSlowMovingReport: React.FC<FastSlowMovingReportProps> = ({
   const [movementFilter, setMovementFilter] = useState<MovementClass>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printModalOptions, setPrintModalOptions] = useState<PrintReportOptions | null>(null);
 
   // Calculate day factor based on date range
   const daysInPeriod = useMemo(() => {
@@ -291,7 +294,7 @@ export const FastSlowMovingReport: React.FC<FastSlowMovingReportProps> = ({
       item.suggestedReorderQty > 0 ? `${item.suggestedReorderQty} units` : '-'
     ]);
 
-    printStructuredReport({
+    const reportConfig: PrintReportOptions = {
       title: 'Stock Velocity & Inventory Turnover Report',
       subtitle: `Formulary movement velocity, stockout forecasts, and tied-up capital analysis (${movementFilter.toUpperCase()} filter applied)`,
       pharmacySettings: settings,
@@ -314,7 +317,10 @@ export const FastSlowMovingReport: React.FC<FastSlowMovingReportProps> = ({
       showSignOff: true,
       signOffTitle: 'Warehouse Storekeeper & Inventory Auditor Sign-off',
       signOffRole: currentUser.role === 'storekeeper' ? 'Head Storekeeper' : 'Superintendent Pharmacist'
-    });
+    };
+
+    setPrintModalOptions(reportConfig);
+    setIsPrintModalOpen(true);
   };
 
   return (
@@ -640,6 +646,13 @@ export const FastSlowMovingReport: React.FC<FastSlowMovingReportProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Print & PDF Export Modal */}
+      <ReportPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        options={printModalOptions}
+      />
     </div>
   );
 };

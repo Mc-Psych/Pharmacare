@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { Prescription, PrescriptionItem } from '../../types';
 import { WHO_DIAGNOSES, WHODiagnosis } from '../../data/whoDiagnosisData';
-import { printStructuredReport } from '../../utils/printReport';
+import { PrintReportOptions, printStructuredReport } from '../../utils/printReport';
+import { ReportPrintModal } from '../common/ReportPrintModal';
 import {
   FileCheck2,
   Plus,
@@ -56,6 +57,8 @@ export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ onNavigateTa
   const [viewingRx, setViewingRx] = useState<Prescription | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [infoMessage, setInfoMessage] = useState<string>('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printModalOptions, setPrintModalOptions] = useState<PrintReportOptions | null>(null);
 
   // Form State
   const [customerId, setCustomerId] = useState('');
@@ -823,7 +826,7 @@ export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ onNavigateTa
               <button
                 type="button"
                 onClick={() => {
-                  printStructuredReport({
+                  const reportConfig: PrintReportOptions = {
                     title: 'Prescription Dispensation & Clinical Order',
                     subtitle: `Official prescription order record for ${viewingRx.customerName}`,
                     pharmacySettings: settings,
@@ -858,7 +861,10 @@ export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ onNavigateTa
                     showSignOff: true,
                     signOffTitle: 'Dispensing Pharmacist Verification',
                     signOffRole: 'Licensed Pharmacist'
-                  });
+                  };
+
+                  setPrintModalOptions(reportConfig);
+                  setIsPrintModalOpen(true);
                 }}
                 className="inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
               >
@@ -869,6 +875,13 @@ export const PrescriptionView: React.FC<PrescriptionViewProps> = ({ onNavigateTa
           </div>
         </div>
       )}
+
+      {/* Print & PDF Modal */}
+      <ReportPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        options={printModalOptions}
+      />
     </div>
   );
 };

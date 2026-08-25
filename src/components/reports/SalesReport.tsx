@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { Sale, SaleItem } from '../../types';
 import { safeFixed } from '../../utils/formatters';
-import { printStructuredReport } from '../../utils/printReport';
+import { PrintReportOptions, printStructuredReport } from '../../utils/printReport';
+import { ReportPrintModal } from '../common/ReportPrintModal';
 import {
   TrendingUp,
   Download,
@@ -44,6 +45,8 @@ export const SalesReport: React.FC<SalesReportProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPaymentFilter, setSelectedPaymentFilter] = useState<string>('all');
   const [selectedSaleDetail, setSelectedSaleDetail] = useState<Sale | null>(null);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printModalOptions, setPrintModalOptions] = useState<PrintReportOptions | null>(null);
 
   // Filter sales based on selected date range
   const filteredSales = useMemo(() => {
@@ -254,7 +257,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({
       s.dispensedByName || s.cashierName || 'Cashier'
     ]);
 
-    printStructuredReport({
+    const reportConfig: PrintReportOptions = {
       title: 'Sales & Revenue Financial Audit Report',
       subtitle: 'Comprehensive sales performance, payment channels, and transaction ledger',
       pharmacySettings: settings,
@@ -285,7 +288,10 @@ export const SalesReport: React.FC<SalesReportProps> = ({
       showSignOff: true,
       signOffTitle: 'Superintendent Pharmacist / Financial Controller',
       signOffRole: 'Superintendent Pharmacist'
-    });
+    };
+
+    setPrintModalOptions(reportConfig);
+    setIsPrintModalOpen(true);
   };
 
   return (
@@ -821,6 +827,13 @@ export const SalesReport: React.FC<SalesReportProps> = ({
           </div>
         </div>
       )}
+
+      {/* Report Print & PDF Modal */}
+      <ReportPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => setIsPrintModalOpen(false)}
+        options={printModalOptions}
+      />
     </div>
   );
 };
