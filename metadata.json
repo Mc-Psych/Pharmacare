@@ -1,0 +1,6 @@
+{
+  "name": "PharmaCare Pharmacy - Management System",
+  "description": "Comprehensive, secure Pharmacy Management System for PharmaCare Pharmacy with inventory control, FEFO batch tracking, POS, prescription dispensing, supplier purchases, Global RBAC Permission Matrix, and financial analytics in Ghana Cedis (GH₵ / GHS).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

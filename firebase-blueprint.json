@@ -1,0 +1,386 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Staff member user accounts and credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "username": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "pharmacist", "dispensing_assistant", "cashier", "storekeeper"] },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "isActive": { "type": "boolean" },
+        "mustChangePasswordOnLogin": { "type": "boolean" },
+        "customPermissions": { "type": "object" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "username", "name", "email", "role"]
+    },
+    "Medicine": {
+      "title": "Medicine",
+      "description": "Medicine pharmaceutical catalog item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "genericName": { "type": "string" },
+        "brandName": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "dosageForm": { "type": "string" },
+        "strength": { "type": "string" },
+        "unit": { "type": "string" },
+        "packSize": { "type": "number" },
+        "costPrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "minStockLevel": { "type": "number" },
+        "maxStockLevel": { "type": "number" },
+        "requiresPrescription": { "type": "boolean" },
+        "isControlledSubstance": { "type": "boolean" },
+        "barcode": { "type": "string" },
+        "locationRack": { "type": "string" },
+        "manufacturer": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "categoryId", "sellingPrice"]
+    },
+    "MedicineBatch": {
+      "title": "MedicineBatch",
+      "description": "Specific manufactured lot or batch of medicine with expiry date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "medicineId": { "type": "string" },
+        "batchNumber": { "type": "string" },
+        "expiryDate": { "type": "string" },
+        "manufacturingDate": { "type": "string" },
+        "costPrice": { "type": "number" },
+        "sellingPrice": { "type": "number" },
+        "quantity": { "type": "number" },
+        "initialQuantity": { "type": "number" },
+        "supplierId": { "type": "string" },
+        "receivedDate": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "medicineId", "batchNumber", "expiryDate", "quantity"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Therapeutic drug category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Pharmaceutical distributor or vendor",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "taxId": { "type": "string" },
+        "paymentTerms": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Patient or customer medical profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "gender": { "type": "string" },
+        "allergies": { "type": "array" },
+        "chronicConditions": { "type": "array" },
+        "notes": { "type": "string" },
+        "totalPurchases": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Prescription": {
+      "title": "Prescription",
+      "description": "Doctor prescription order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "prescriptionNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "doctorName": { "type": "string" },
+        "clinicHospital": { "type": "string" },
+        "diagnosis": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "in_dispensing", "dispensed", "cancelled"] },
+        "items": { "type": "array" },
+        "pharmacistNotes": { "type": "string" },
+        "dispensedBy": { "type": "string" },
+        "dispensedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "prescriptionNumber", "customerName", "doctorName", "status"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "POS sales invoice and dispensing record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerPhone": { "type": "string" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "discountTotal": { "type": "number" },
+        "taxRate": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "changeGiven": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "paymentStatus": { "type": "string", "enum": ["paid", "pending", "partially_paid"] },
+        "dispensingStatus": { "type": "string", "enum": ["dispensed", "pending_dispensing", "cancelled"] },
+        "cashierId": { "type": "string" },
+        "cashierName": { "type": "string" },
+        "dispensedBy": { "type": "string" },
+        "dispensedAt": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "invoiceNumber", "grandTotal", "paymentStatus", "dispensingStatus"]
+    },
+    "PurchaseOrder": {
+      "title": "PurchaseOrder",
+      "description": "Inbound supplier purchase order",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "poNumber": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "taxAmount": { "type": "number" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["ordered", "pending", "approved", "received", "cancelled", "draft"] },
+        "receivedDate": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "poNumber", "supplierId", "totalAmount", "status"]
+    },
+    "StockAdjustment": {
+      "title": "StockAdjustment",
+      "description": "Inventory reconciliation and adjustment audit record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "medicineId": { "type": "string" },
+        "medicineName": { "type": "string" },
+        "batchId": { "type": "string" },
+        "batchNumber": { "type": "string" },
+        "type": { "type": "string", "enum": ["add", "remove", "reconcile", "expired_disposal", "damage"] },
+        "quantity": { "type": "number" },
+        "previousQuantity": { "type": "number" },
+        "newQuantity": { "type": "number" },
+        "reason": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "medicineId", "type", "quantity", "performedBy"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Immutable ledger entry for all inventory additions, deductions, sales, returns and adjustments",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "medicineId": { "type": "string" },
+        "medicineName": { "type": "string" },
+        "batchId": { "type": "string" },
+        "batchNumber": { "type": "string" },
+        "movementType": { "type": "string" },
+        "quantity": { "type": "number" },
+        "previousStock": { "type": "number" },
+        "newStock": { "type": "number" },
+        "referenceId": { "type": "string" },
+        "performedById": { "type": "string" },
+        "performedByName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "medicineId", "movementType", "quantity", "performedById"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Security audit trail event log",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "module": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "ipAddress": { "type": "string" }
+      },
+      "required": ["id", "timestamp", "userId", "userName", "module", "action"]
+    },
+    "ReturnOrder": {
+      "title": "ReturnOrder",
+      "description": "Customer sales return and refund record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "returnNumber": { "type": "string" },
+        "saleId": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "items": { "type": "array" },
+        "totalRefundAmount": { "type": "number" },
+        "reason": { "type": "string" },
+        "processedBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "returnNumber", "totalRefundAmount", "processedBy"]
+    },
+    "PharmacySettings": {
+      "title": "PharmacySettings",
+      "description": "Store configuration and tax settings",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "pharmacyName": { "type": "string" },
+        "tagline": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "currencySymbol": { "type": "string" },
+        "currencyCode": { "type": "string" },
+        "taxRatePercent": { "type": "number" },
+        "enableTax": { "type": "boolean" },
+        "lowStockThresholdDefault": { "type": "number" },
+        "expiryAlertDaysDefault": { "type": "number" },
+        "enableFefoEnforcement": { "type": "boolean" },
+        "allowNegativeStockSales": { "type": "boolean" },
+        "receiptFooterMessage": { "type": "string" },
+        "licenseNumber": { "type": "string" },
+        "fefoStrict": { "type": "boolean" }
+      },
+      "required": ["pharmacyName", "currencySymbol"]
+    },
+    "RBACMatrix": {
+      "title": "RBACMatrix",
+      "description": "System role permission matrix",
+      "type": "object",
+      "properties": {
+        "matrix": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["matrix"]
+    },
+    "SavedCart": {
+      "title": "SavedCart",
+      "description": "Held or parked POS cart",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "prescriptionId": { "type": "string" },
+        "prescriptionNumber": { "type": "string" },
+        "items": { "type": "array" },
+        "discountPercent": { "type": "number" },
+        "notes": { "type": "string" },
+        "savedAt": { "type": "string" },
+        "savedBy": { "type": "string" }
+      },
+      "required": ["id", "name", "items", "savedAt", "savedBy"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Staff member accounts"
+    },
+    "/medicines/{medicineId}": {
+      "schema": { "$ref": "#/entities/Medicine" },
+      "description": "Medicine pharmaceutical catalog"
+    },
+    "/batches/{batchId}": {
+      "schema": { "$ref": "#/entities/MedicineBatch" },
+      "description": "Medicine inventory batch lots"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Drug categories"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": { "$ref": "#/entities/Supplier" },
+      "description": "Pharmaceutical suppliers"
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/Customer" },
+      "description": "Patient and customer profiles"
+    },
+    "/prescriptions/{prescriptionId}": {
+      "schema": { "$ref": "#/entities/Prescription" },
+      "description": "Clinical prescriptions"
+    },
+    "/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "POS sales and dispensing invoices"
+    },
+    "/purchaseOrders/{poId}": {
+      "schema": { "$ref": "#/entities/PurchaseOrder" },
+      "description": "Supplier purchase orders"
+    },
+    "/stockAdjustments/{adjustmentId}": {
+      "schema": { "$ref": "#/entities/StockAdjustment" },
+      "description": "Inventory stock adjustments"
+    },
+    "/stockMovements/{movementId}": {
+      "schema": { "$ref": "#/entities/StockMovement" },
+      "description": "Immutable inventory stock movement ledger"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "Security audit logs"
+    },
+    "/returns/{returnId}": {
+      "schema": { "$ref": "#/entities/ReturnOrder" },
+      "description": "Sales returns and refunds"
+    },
+    "/settings/{settingsId}": {
+      "schema": { "$ref": "#/entities/PharmacySettings" },
+      "description": "Pharmacy store configuration"
+    },
+    "/rbacMatrix/{matrixId}": {
+      "schema": { "$ref": "#/entities/RBACMatrix" },
+      "description": "Role-Based Access Control matrix"
+    },
+    "/savedCarts/{cartId}": {
+      "schema": { "$ref": "#/entities/SavedCart" },
+      "description": "Parked POS carts"
+    }
+  }
+}

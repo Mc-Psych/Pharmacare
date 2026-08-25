@@ -1,0 +1,239 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Security & Validation Helpers
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'username', 'name', 'role']) &&
+        data.id is string && isValidId(data.id) &&
+        data.username is string && data.username.size() > 0 &&
+        data.name is string && data.name.size() > 0 &&
+        data.role in ['admin', 'pharmacist', 'dispensing_assistant', 'cashier', 'storekeeper'];
+    }
+
+    function isValidMedicine(data) {
+      return data.keys().hasAll(['id', 'name', 'categoryId', 'sellingPrice']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() > 0 &&
+        data.categoryId is string &&
+        data.sellingPrice is number && data.sellingPrice >= 0;
+    }
+
+    function isValidBatch(data) {
+      return data.keys().hasAll(['id', 'medicineId', 'batchNumber', 'expiryDate', 'remainingQuantity']) &&
+        data.id is string && isValidId(data.id) &&
+        data.medicineId is string &&
+        data.batchNumber is string && data.batchNumber.size() > 0 &&
+        data.expiryDate is string &&
+        data.remainingQuantity is number && data.remainingQuantity >= 0;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() > 0;
+    }
+
+    function isValidSupplier(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() > 0;
+    }
+
+    function isValidCustomer(data) {
+      return data.keys().hasAll(['id', 'name']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() > 0;
+    }
+
+    function isValidPrescription(data) {
+      return data.keys().hasAll(['id', 'prescriptionNumber', 'customerName', 'doctorName', 'status']) &&
+        data.id is string && isValidId(data.id) &&
+        data.prescriptionNumber is string &&
+        data.customerName is string &&
+        data.doctorName is string &&
+        data.status in ['pending', 'in_dispensing', 'dispensed', 'cancelled'];
+    }
+
+    function isValidSale(data) {
+      return data.keys().hasAll(['id', 'invoiceNumber', 'grandTotal', 'items']) &&
+        data.id is string && isValidId(data.id) &&
+        data.invoiceNumber is string && data.invoiceNumber.size() > 0 &&
+        data.grandTotal is number && data.grandTotal >= 0 &&
+        data.items is list && data.items.size() <= 200;
+    }
+
+    function isValidPurchaseOrder(data) {
+      return data.keys().hasAll(['id', 'poNumber', 'supplierId', 'totalAmount', 'status']) &&
+        data.id is string && isValidId(data.id) &&
+        data.poNumber is string &&
+        data.supplierId is string &&
+        data.totalAmount is number && data.totalAmount >= 0 &&
+        data.status in ['ordered', 'pending', 'approved', 'received', 'cancelled', 'draft'];
+    }
+
+    function isValidStockAdjustment(data) {
+      return data.keys().hasAll(['id', 'medicineId', 'batchId', 'reason']) &&
+        data.id is string && isValidId(data.id) &&
+        data.medicineId is string &&
+        data.batchId is string &&
+        data.reason is string;
+    }
+
+    function isValidStockMovement(data) {
+      return data.keys().hasAll(['id', 'medicineId', 'quantity', 'movementType']) &&
+        data.id is string && isValidId(data.id) &&
+        data.medicineId is string &&
+        data.quantity is number &&
+        data.movementType is string;
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll(['id', 'timestamp', 'userId', 'userName', 'module', 'action']) &&
+        data.id is string && isValidId(data.id) &&
+        data.timestamp is string &&
+        data.userId is string &&
+        data.userName is string &&
+        data.module is string &&
+        data.action is string;
+    }
+
+    function isValidReturn(data) {
+      return data.keys().hasAll(['id', 'returnNumber', 'items', 'processedBy']) &&
+        data.id is string && isValidId(data.id) &&
+        data.returnNumber is string &&
+        data.items is list &&
+        data.processedBy is string;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['pharmacyName', 'currencySymbol']) &&
+        data.pharmacyName is string && data.pharmacyName.size() > 0 &&
+        data.currencySymbol is string;
+    }
+
+    function isValidRBACMatrix(data) {
+      return data.keys().hasAll(['matrix']) &&
+        data.matrix is map;
+    }
+
+    function isValidSavedCart(data) {
+      return data.keys().hasAll(['id', 'name', 'items', 'savedAt', 'savedBy']) &&
+        data.id is string && isValidId(data.id) &&
+        data.name is string &&
+        data.items is list &&
+        data.savedAt is string &&
+        data.savedBy is string;
+    }
+
+    // Staff accounts & user profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isValidId(userId) && isValidUser(incoming());
+    }
+
+    // Medicines catalog
+    match /medicines/{medicineId} {
+      allow read: if true;
+      allow write: if isValidId(medicineId) && isValidMedicine(incoming());
+    }
+
+    // Medicine batches (Inventory lots)
+    match /batches/{batchId} {
+      allow read: if true;
+      allow write: if isValidId(batchId) && isValidBatch(incoming());
+    }
+
+    // Therapeutic Categories
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isValidId(categoryId) && isValidCategory(incoming());
+    }
+
+    // Suppliers & Vendors
+    match /suppliers/{supplierId} {
+      allow read: if true;
+      allow write: if isValidId(supplierId) && isValidSupplier(incoming());
+    }
+
+    // Patients & Customers
+    match /customers/{customerId} {
+      allow read: if true;
+      allow write: if isValidId(customerId) && isValidCustomer(incoming());
+    }
+
+    // Doctor Prescriptions
+    match /prescriptions/{prescriptionId} {
+      allow read: if true;
+      allow write: if isValidId(prescriptionId) && isValidPrescription(incoming());
+    }
+
+    // POS Sales & Invoices (Completed financial records cannot be deleted, but unbilled draft/queue orders may be cancelled)
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create, update: if isValidId(saleId) && isValidSale(incoming());
+      allow delete: if resource.data.dispenseStatus == 'awaiting_payment';
+    }
+
+    // Purchase Orders & Inbound Goods
+    match /purchaseOrders/{poId} {
+      allow read: if true;
+      allow write: if isValidId(poId) && isValidPurchaseOrder(incoming());
+    }
+
+    // Stock Adjustments (Reconciliation audit records are append-only)
+    match /stockAdjustments/{adjustmentId} {
+      allow read: if true;
+      allow create: if isValidId(adjustmentId) && isValidStockAdjustment(incoming());
+      allow update, delete: if false;
+    }
+
+    // Immutable Stock Movement Ledger (Append-only)
+    match /stockMovements/{movementId} {
+      allow read: if true;
+      allow create: if isValidId(movementId) && isValidStockMovement(incoming());
+      allow update, delete: if false;
+    }
+
+    // Security Audit Logs (Append-only)
+    match /auditLogs/{logId} {
+      allow read: if true;
+      allow create: if isValidId(logId) && isValidAuditLog(incoming());
+      allow update, delete: if false;
+    }
+
+    // Sales Returns & Refunds (Append-only)
+    match /returns/{returnId} {
+      allow read: if true;
+      allow create: if isValidId(returnId) && isValidReturn(incoming());
+      allow update, delete: if false;
+    }
+
+    // Pharmacy Store Settings
+    match /settings/{settingsId} {
+      allow read: if true;
+      allow write: if isValidId(settingsId) && isValidSettings(incoming());
+    }
+
+    // RBAC Permissions Matrix
+    match /rbacMatrix/{matrixId} {
+      allow read: if true;
+      allow write: if isValidId(matrixId) && isValidRBACMatrix(incoming());
+    }
+
+    // Saved POS Carts
+    match /savedCarts/{cartId} {
+      allow read: if true;
+      allow write: if isValidId(cartId) && isValidSavedCart(incoming());
+    }
+  }
+}
