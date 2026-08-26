@@ -392,7 +392,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
       doc.setFontSize(isThermal ? 6.2 : 7.8);
       
       const statusText = isPaidAndDispensed
-        ? '[ PAYMENT CONFIRMED & MEDICINE DISPENSED ]'
+        ? '[ PAYMENT CONFIRMED & PRESCRIPTION DISPENSED ]'
         : '[ AWAITING CASHIER PAYMENT ]';
 
       const statusLines = doc.splitTextToSize(statusText, printableWidth - 4);
