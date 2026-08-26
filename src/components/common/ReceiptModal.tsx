@@ -166,7 +166,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
               <div class="status-box">
                 ${
                   isPaidAndDispensed
-                    ? '✓ PAYMENT CONFIRMED & MEDICINE DISPENSED'
+                    ? '✓ PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'
                     : '*** AWAITING CASHIER PAYMENT ***'
                 }
               </div>
