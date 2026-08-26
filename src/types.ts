@@ -409,6 +409,9 @@ export interface ToastNotification {
 }
 
 export interface PharmacySettings {
+  systemName?: string;
+  systemLogo?: string;
+  logoUrl?: string;
   pharmacyName: string;
   licenseNumber: string;
   address: string;

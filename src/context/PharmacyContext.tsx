@@ -328,6 +328,8 @@ interface PharmacyContextType {
   showToast: (toast: Omit<ToastNotification, 'id'>) => void;
   dismissToast: () => void;
   markNotificationRead: (id: string) => void;
+  toggleNotificationRead: (id: string) => void;
+  deleteNotification: (id: string) => void;
   clearAllNotifications: () => void;
 
   // Backup, Restore & Reset
@@ -437,6 +439,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => loadState('stockAdjustments', initialStockAdjustments));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => loadState('auditLogs', initialAuditLogs));
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => loadState('readNotificationIds', []));
+  const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>(() => loadState('dismissedNotificationIds', []));
   const [userNotifications, setUserNotifications] = useState<NotificationItem[]>(() => loadState('userNotifications', []));
   const [activeToast, setActiveToast] = useState<ToastNotification | null>(null);
   const [rbacMatrix, setRbacMatrix] = useState<RBACMatrix>(() => loadState('rbacMatrix', initialRBACMatrix));
@@ -459,6 +462,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'stockAdjustments', JSON.stringify(stockAdjustments)); }, [stockAdjustments]);
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'auditLogs', JSON.stringify(auditLogs)); }, [auditLogs]);
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'readNotificationIds', JSON.stringify(readNotificationIds)); }, [readNotificationIds]);
+  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'dismissedNotificationIds', JSON.stringify(dismissedNotificationIds)); }, [dismissedNotificationIds]);
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'userNotifications', JSON.stringify(userNotifications)); }, [userNotifications]);
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'rbacMatrix', JSON.stringify(rbacMatrix)); }, [rbacMatrix]);
   useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'savedCarts', JSON.stringify(savedCarts)); }, [savedCarts]);
@@ -2029,76 +2033,86 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     // User activity notifications (e.g., POS Cart Additions, Account notices)
     userNotifications.forEach(un => {
-      list.push({
-        ...un,
-        isRead: un.isRead || readNotificationIds.includes(un.id),
-      });
+      if (!dismissedNotificationIds.includes(un.id)) {
+        list.push({
+          ...un,
+          isRead: un.isRead || readNotificationIds.includes(un.id),
+        });
+      }
     });
 
     // Expired warnings
     expiredBatches.forEach(item => {
       const notifId = `notif-exp-${item.batch.id}`;
-      list.push({
-        id: notifId,
-        title: `Expired Drug Alert: ${item.medicine.name}`,
-        message: `Batch ${item.batch.batchNumber} has expired (${item.daysPassed} days ago). ${item.batch.remainingQuantity} units must be quarantined and destroyed.`,
-        type: 'danger',
-        module: 'expiry',
-        isRead: readNotificationIds.includes(notifId),
-        linkTab: 'inventory',
-        createdAt: item.batch.createdAt,
-      });
+      if (!dismissedNotificationIds.includes(notifId)) {
+        list.push({
+          id: notifId,
+          title: `Expired Drug Alert: ${item.medicine.name}`,
+          message: `Batch ${item.batch.batchNumber} has expired (${item.daysPassed} days ago). ${item.batch.remainingQuantity} units must be quarantined and destroyed.`,
+          type: 'danger',
+          module: 'expiry',
+          isRead: readNotificationIds.includes(notifId),
+          linkTab: 'inventory',
+          createdAt: item.batch.createdAt,
+        });
+      }
     });
 
     // Near-expiry warnings
     nearExpiryBatches.forEach(item => {
       const notifId = `notif-nearexp-${item.batch.id}`;
-      list.push({
-        id: notifId,
-        title: `Near Expiry Warning: ${item.medicine.name}`,
-        message: `Batch ${item.batch.batchNumber} will expire in ${item.daysLeft} days (${item.batch.expiryDate}). Prioritize via FEFO dispensing.`,
-        type: 'warning',
-        module: 'expiry',
-        isRead: readNotificationIds.includes(notifId),
-        linkTab: 'inventory',
-        createdAt: item.batch.createdAt,
-      });
+      if (!dismissedNotificationIds.includes(notifId)) {
+        list.push({
+          id: notifId,
+          title: `Near Expiry Warning: ${item.medicine.name}`,
+          message: `Batch ${item.batch.batchNumber} will expire in ${item.daysLeft} days (${item.batch.expiryDate}). Prioritize via FEFO dispensing.`,
+          type: 'warning',
+          module: 'expiry',
+          isRead: readNotificationIds.includes(notifId),
+          linkTab: 'inventory',
+          createdAt: item.batch.createdAt,
+        });
+      }
     });
 
     // Low stock warnings
     lowStockMedicines.forEach(item => {
       const notifId = `notif-low-${item.medicine.id}`;
-      list.push({
-        id: notifId,
-        title: `Low Stock: ${item.medicine.name}`,
-        message: `Available quantity (${item.currentStock} units) is at or below reorder threshold (${item.medicine.minimumStockLevel}). Replenish PO immediately.`,
-        type: 'warning',
-        module: 'inventory',
-        isRead: readNotificationIds.includes(notifId),
-        linkTab: 'purchases',
-        createdAt: item.medicine.createdAt,
-      });
+      if (!dismissedNotificationIds.includes(notifId)) {
+        list.push({
+          id: notifId,
+          title: `Low Stock: ${item.medicine.name}`,
+          message: `Available quantity (${item.currentStock} units) is at or below reorder threshold (${item.medicine.minimumStockLevel}). Replenish PO immediately.`,
+          type: 'warning',
+          module: 'inventory',
+          isRead: readNotificationIds.includes(notifId),
+          linkTab: 'purchases',
+          createdAt: item.medicine.createdAt,
+        });
+      }
     });
 
     // Pending Prescriptions
     const pendingRx = prescriptions.filter(r => r.status === 'pending');
     if (pendingRx.length > 0) {
       const notifId = 'notif-pending-rx';
-      list.push({
-        id: notifId,
-        title: `Pending Prescriptions (${pendingRx.length})`,
-        message: `${pendingRx.length} patient prescription(s) awaiting clinical verification and dispensing.`,
-        type: 'info',
-        module: 'prescription',
-        isRead: readNotificationIds.includes(notifId),
-        linkTab: 'prescriptions',
-        createdAt: new Date().toISOString(),
-      });
+      if (!dismissedNotificationIds.includes(notifId)) {
+        list.push({
+          id: notifId,
+          title: `Pending Prescriptions (${pendingRx.length})`,
+          message: `${pendingRx.length} patient prescription(s) awaiting clinical verification and dispensing.`,
+          type: 'info',
+          module: 'prescription',
+          isRead: readNotificationIds.includes(notifId),
+          linkTab: 'prescriptions',
+          createdAt: new Date().toISOString(),
+        });
+      }
     }
 
     // Sort newest first
     return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [userNotifications, expiredBatches, nearExpiryBatches, lowStockMedicines, prescriptions, readNotificationIds]);
+  }, [userNotifications, expiredBatches, nearExpiryBatches, lowStockMedicines, prescriptions, readNotificationIds, dismissedNotificationIds]);
 
   // Dismiss / Clear active toast
   const dismissToast = () => {
@@ -2153,6 +2167,21 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const markNotificationRead = (id: string) => {
     setReadNotificationIds(prev => (prev.includes(id) ? prev : [...prev, id]));
     setUserNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true } : n)));
+  };
+
+  const toggleNotificationRead = (id: string) => {
+    if (readNotificationIds.includes(id)) {
+      setReadNotificationIds(prev => prev.filter(i => i !== id));
+      setUserNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: false } : n)));
+    } else {
+      setReadNotificationIds(prev => [...prev, id]);
+      setUserNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true } : n)));
+    }
+  };
+
+  const deleteNotification = (id: string) => {
+    setDismissedNotificationIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+    setUserNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const clearAllNotifications = () => {
@@ -2361,6 +2390,8 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         showToast,
         dismissToast,
         markNotificationRead,
+        toggleNotificationRead,
+        deleteNotification,
         clearAllNotifications,
         exportDatabase,
         exportFullDatabaseBackup: exportDatabase,
