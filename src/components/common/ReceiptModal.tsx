@@ -166,7 +166,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
               <div class="status-box">
                 ${
                   isPaidAndDispensed
-                    ? '✓ PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'
+                    ? 'PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'
                     : '*** AWAITING CASHIER PAYMENT ***'
                 }
               </div>
@@ -392,8 +392,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
       doc.setFontSize(isThermal ? 6.2 : 7.8);
       
       const statusText = isPaidAndDispensed
-        ? '[ PAYMENT CONFIRMED & PRESCRIPTION DISPENSED ]'
-        : '[ AWAITING CASHIER PAYMENT ]';
+        ? 'PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'
+        : 'AWAITING CASHIER PAYMENT';
 
       const statusLines = doc.splitTextToSize(statusText, printableWidth - 4);
       const boxPadding = 2;
@@ -494,7 +494,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
       `Change Given: ${currency}${safeFixed(sale.changeGiven)}`,
       '----------------------------------------',
       isPaidAndDispensed
-        ? '✓ PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'
+        ? 'PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'
         : '*** AWAITING CASHIER PAYMENT ***',
       '========================================',
       settings.receiptFooter,
@@ -691,7 +691,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                   : 'bg-amber-50 text-amber-800 border-amber-300'
               }`}>
-                {isPaidAndDispensed && ' PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'}
+                {isPaidAndDispensed && 'PAYMENT CONFIRMED & PRESCRIPTION DISPENSED'}
                 {sale.dispenseStatus === 'awaiting_payment' && '⏳ AWAITING CASHIER PAYMENT'}
               </div>
             </div>
