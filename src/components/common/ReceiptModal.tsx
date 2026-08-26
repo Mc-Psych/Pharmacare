@@ -172,8 +172,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
               </div>
               
               <div class="divider"></div>
-              <div class="barcode">||||| | |||| || |||| |||||</div>
-              <div class="text-center" style="font-size:8.5px;color:#64748b;font-family:monospace;margin-top:1px;">${sale.invoiceNumber}</div>
+              <!--<div class="barcode">||||| | |||| || |||| |||||</div> -->
+             <!-- <div class="text-center" style="font-size:8.5px;color:#64748b;font-family:monospace;margin-top:1px;">${sale.invoiceNumber}</div> -->
               <div class="footer">${settings.receiptFooter}</div>
               <div class="text-center" style="font-size:8px;color:#94a3b8;margin-top:2px;">Offline Healthcare POS • Official Copy</div>
             </body>
