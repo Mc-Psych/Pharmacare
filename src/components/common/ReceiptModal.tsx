@@ -423,7 +423,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
       doc.setTextColor(15, 23, 42);
 
       // Barcode / Footer
-      y += 5;
+     /* y += 5;
       doc.setFont('courier', 'bold');
       doc.setFontSize(isThermal ? 9.5 : 12);
       doc.text('||||| | |||| || |||| |||||', pageWidth / 2, y, { align: 'center' });
@@ -432,7 +432,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(isThermal ? 6 : 7.5);
       doc.setTextColor(100, 116, 139);
-      doc.text(sale.invoiceNumber, pageWidth / 2, y, { align: 'center' });
+      doc.text(sale.invoiceNumber, pageWidth / 2, y, { align: 'center' });*/
 
       if (settings.receiptFooter) {
         y += 3.5;
