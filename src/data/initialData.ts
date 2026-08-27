@@ -36,6 +36,8 @@ export const initialSettings: PharmacySettings = {
   allowNegativeStock: false,
   enforcePrescriptionVerification: true,
   autoPrintReceipt: true,
+  enableDemoLogin: false,
+  enableQuickFillDemo: false,
 };
 
 export const initialUsers: User[] = [

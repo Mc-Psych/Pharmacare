@@ -18,7 +18,10 @@ import {
   FileText,
   Shield,
   Layers,
-  Store
+  Store,
+  UserCheck,
+  KeyRound,
+  Lock
 } from 'lucide-react';
 
 // Preset sample pharmacy logos for instant branding selection
@@ -723,6 +726,62 @@ export const SettingsView: React.FC = () => {
                 onChange={(e) => setFormData({ ...formData, lowStockThresholdDefault: parseInt(e.target.value) || 15 })}
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 5: Terminal Security & Quick Fill Demo Controls */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
+                <Lock className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Terminal Authentication & Demo Settings</h3>
+                <p className="text-xs text-slate-500">
+                  Control login security policies and 1-click staff quick fill demo mode.
+                </p>
+              </div>
+            </div>
+            <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${formData.enableDemoLogin ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+              {formData.enableDemoLogin ? 'Demo Mode Active' : 'Production Secure Mode'}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1 pr-4">
+                <div className="flex items-center space-x-2">
+                  <UserCheck className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs font-bold text-slate-900">Quick Fill Demo & 1-Click Staff Login</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  When <strong>Disabled</strong> (Default / Production), all staff must manually authenticate with their registered username and password/PIN.
+                  When <strong>Enabled</strong>, 1-click fast login buttons appear on the login screen for rapid onboarding and training demonstrations.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
+                <input
+                  type="checkbox"
+                  checked={!!formData.enableDemoLogin}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setFormData(prev => ({
+                      ...prev,
+                      enableDemoLogin: checked,
+                      enableQuickFillDemo: checked
+                    }));
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200 flex items-center justify-between">
+              <span>Admin status: Courage Kay can toggle this setting at any time.</span>
+              <span className="font-semibold text-slate-700">Status: {formData.enableDemoLogin ? 'Enabled' : 'Disabled'}</span>
             </div>
           </div>
         </div>

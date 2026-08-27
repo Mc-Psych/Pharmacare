@@ -433,6 +433,8 @@ export interface PharmacySettings {
   allowNegativeStock: boolean;
   enforcePrescriptionVerification: boolean;
   autoPrintReceipt: boolean;
+  enableDemoLogin?: boolean;
+  enableQuickFillDemo?: boolean;
 }
 
 export type PermissionKey =
