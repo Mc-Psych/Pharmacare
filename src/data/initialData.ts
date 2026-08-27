@@ -502,59 +502,7 @@ export const initialBatches: MedicineBatch[] = [
   ...nhisInitialBatches
 ];
 
-export const initialCustomers: Customer[] = [
-  {
-    id: 'cust-1',
-    name: 'Kwame Nkrumah',
-    telephone: '+233 24 991 2233',
-    email: 'k.nkrumah@gmail.com',
-    gender: 'male',
-    address: 'Adabraka, Accra',
-    allergies: ['Penicillin'],
-    chronicConditions: ['Hypertension'],
-    bloodGroup: 'O+',
-    totalPurchases: 4,
-    createdAt: '2026-01-06T09:00:00.000Z'
-  },
-  {
-    id: 'cust-2',
-    name: 'Efua Sutherland',
-    telephone: '+233 20 556 7788',
-    email: 'efua.s@yahoo.com',
-    gender: 'female',
-    address: 'East Legon, Accra',
-    allergies: ['Sulfa drugs'],
-    chronicConditions: ['Type 2 Diabetes'],
-    bloodGroup: 'A+',
-    totalPurchases: 6,
-    createdAt: '2026-01-08T10:30:00.000Z'
-  },
-  {
-    id: 'cust-3',
-    name: 'Emmanuel Addo',
-    telephone: '+233 54 112 3344',
-    email: 'emmanuel.addo@outlook.com',
-    gender: 'male',
-    address: 'Osu RE, Accra',
-    allergies: [],
-    chronicConditions: ['Asthma'],
-    bloodGroup: 'B+',
-    totalPurchases: 3,
-    createdAt: '2026-01-10T14:15:00.000Z'
-  },
-  {
-    id: 'cust-4',
-    name: 'Akua Danquah',
-    telephone: '+233 27 778 9900',
-    gender: 'female',
-    address: 'Airport Residential, Accra',
-    allergies: ['Aspirin'],
-    chronicConditions: [],
-    bloodGroup: 'O-',
-    totalPurchases: 5,
-    createdAt: '2026-01-12T11:00:00.000Z'
-  }
-];
+export const initialCustomers: Customer[] = [];
 
 export const initialPrescriptions: Prescription[] = [];
 

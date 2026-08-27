@@ -50,7 +50,8 @@ export const SettingsView: React.FC = () => {
     updateSettings,
     exportFullDatabaseBackup,
     restoreDatabaseBackup,
-    resetToDefaultSeedData
+    resetToDefaultSeedData,
+    clearAllOperationalData
   } = usePharmacy();
 
   const [formData, setFormData] = useState<PharmacySettings>({
@@ -231,11 +232,25 @@ export const SettingsView: React.FC = () => {
   const handleResetDefaults = () => {
     if (
       window.confirm(
-        'WARNING: This will reset all current transactions, batches, and patient data back to system demonstration seed defaults. Proceed?'
+        'WARNING: This will reset all current transactions, batches, and patient data back to clean system defaults. Proceed?'
       )
     ) {
       resetToDefaultSeedData();
       window.location.reload();
+    }
+  };
+
+  const handleClearOperationalRecords = () => {
+    if (
+      window.confirm(
+        'CONFIRM PURGE: This will permanently delete ALL system sales, refunds, purchase orders, suppliers, prescriptions, patients, returns, and carts for all time. Analytics and financial reports will be cleared. Continue?'
+      )
+    ) {
+      if (clearAllOperationalData) {
+        clearAllOperationalData();
+      }
+      setBackupMsg('All operational, sales, refunds, purchase orders, suppliers, prescriptions, and patient records cleared.');
+      setTimeout(() => setBackupMsg(''), 4000);
     }
   };
 
@@ -810,7 +825,7 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
           {/* Export */}
           <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 flex flex-col justify-between">
             <div>
@@ -860,6 +875,26 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
+          {/* Clear Operational Records */}
+          <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-200 space-y-2 flex flex-col justify-between">
+            <div>
+              <h4 className="text-xs font-bold text-amber-950 flex items-center">
+                <Trash2 className="w-4 h-4 mr-1.5 text-amber-600" />
+                Purge All Transactions
+              </h4>
+              <p className="text-[11px] text-amber-800 mt-1">
+                Clear all sales, refunds, purchase orders, suppliers, prescriptions, & patients for all time.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearOperationalRecords}
+              className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors mt-3 cursor-pointer"
+            >
+              Purge Records
+            </button>
+          </div>
+
           {/* Reset */}
           <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-200 space-y-2 flex flex-col justify-between">
             <div>
@@ -868,7 +903,7 @@ export const SettingsView: React.FC = () => {
                 Seed Factory Reset
               </h4>
               <p className="text-[11px] text-rose-800 mt-1">
-                Reset system back to default pharmaceutical seed records.
+                Reset system back to clean initial system setup and configurations.
               </p>
             </div>
             <button
@@ -876,7 +911,7 @@ export const SettingsView: React.FC = () => {
               onClick={handleResetDefaults}
               className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors mt-3 cursor-pointer"
             >
-              Reset Seed Data
+              Reset System
             </button>
           </div>
         </div>

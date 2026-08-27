@@ -167,9 +167,30 @@ export async function purgeAppCollectionsExceptAdmin(): Promise<void> {
       deleteCount++;
     });
 
-    // 7. Purge saved carts
+    // 7. Purge customers / patients
+    const custSnap = await getDocs(collection(db, FirestoreCollections.CUSTOMERS));
+    custSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 8. Purge saved carts
     const cartsSnap = await getDocs(collection(db, FirestoreCollections.SAVED_CARTS));
     cartsSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 9. Purge stock adjustments
+    const adjSnap = await getDocs(collection(db, FirestoreCollections.STOCK_ADJUSTMENTS));
+    adjSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 10. Purge stock movements if any
+    const movSnap = await getDocs(collection(db, FirestoreCollections.STOCK_MOVEMENTS));
+    movSnap.forEach(snap => {
       batch.delete(snap.ref);
       deleteCount++;
     });

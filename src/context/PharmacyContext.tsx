@@ -340,6 +340,7 @@ interface PharmacyContextType {
   restoreDatabaseBackup?: (jsonString: string) => boolean;
   resetDatabaseToDefault: () => void;
   resetToDefaultSeedData?: () => void;
+  clearAllOperationalData?: () => void;
 
   // Computed helper data
   lowStockMedicines: { medicine: Medicine; currentStock: number }[];
@@ -440,40 +441,43 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     return loaded.length > 0 ? loaded : initialBatches;
   });
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    const loaded = loadState<Supplier[]>('suppliers', initialSuppliers);
-    const legacySupplierIds = ['sup-ernest-chem', 'sup-kinapharma', 'sup-letap', 'sup-danadams'];
-    return loaded.filter(s => !legacySupplierIds.includes(s.id));
+    return [];
   });
   const [customers, setCustomers] = useState<Customer[]>(() => {
-    const loaded = loadState<Customer[]>('customers', initialCustomers);
-    return loaded.length > 0 ? loaded : initialCustomers;
+    return [];
   });
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(() => {
-    const loaded = loadState<Prescription[]>('prescriptions', initialPrescriptions);
-    const legacyRxIds = ['rx-2026-001', 'rx-2026-002'];
-    return loaded.filter(p => !legacyRxIds.includes(p.id));
+    return [];
   });
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
-    const loaded = loadState<PurchaseOrder[]>('purchaseOrders', initialPurchaseOrders);
-    const legacyPoIds = ['po-2026-01', 'po-2026-02'];
-    return loaded.filter(p => !legacyPoIds.includes(p.id));
+    return [];
   });
   const [sales, setSales] = useState<Sale[]>(() => {
-    const loaded = loadState<Sale[]>('sales', initialSales);
-    return loaded.filter(s => !s.id.startsWith('sale-gh-'));
+    return [];
   });
   const [returns, setReturns] = useState<ReturnOrder[]>(() => {
-    const loaded = loadState<ReturnOrder[]>('returns', initialReturns);
-    return loaded.filter(r => !r.id.startsWith('ret-gh-'));
+    return [];
   });
-  const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => loadState('stockAdjustments', initialStockAdjustments));
+  const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => {
+    return [];
+  });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => loadState('auditLogs', initialAuditLogs));
   const [readNotificationIds, setReadNotificationIds] = useState<string[]>(() => loadState('readNotificationIds', []));
   const [dismissedNotificationIds, setDismissedNotificationIds] = useState<string[]>(() => loadState('dismissedNotificationIds', []));
   const [userNotifications, setUserNotifications] = useState<NotificationItem[]>(() => loadState('userNotifications', []));
   const [activeToast, setActiveToast] = useState<ToastNotification | null>(null);
   const [rbacMatrix, setRbacMatrix] = useState<RBACMatrix>(() => loadState('rbacMatrix', initialRBACMatrix));
-  const [savedCarts, setSavedCarts] = useState<SavedCart[]>(() => loadState('savedCarts', []));
+  const [savedCarts, setSavedCarts] = useState<SavedCart[]>(() => {
+    return [];
+  });
+
+  // Purge any stale legacy operational data from localStorage on mount
+  useEffect(() => {
+    const operationalKeys = ['suppliers', 'customers', 'prescriptions', 'purchaseOrders', 'sales', 'returns', 'stockAdjustments', 'savedCarts'];
+    operationalKeys.forEach(k => {
+      localStorage.removeItem(LOCAL_STORAGE_PREFIX + k);
+    });
+  }, []);
 
   // Sync to localStorage safely
   useEffect(() => { safeSetItem('settings', settings); }, [settings]);
@@ -2322,6 +2326,40 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
   };
 
+  const clearAllOperationalData = () => {
+    setSuppliers([]);
+    setCustomers([]);
+    setPrescriptions([]);
+    setPurchaseOrders([]);
+    setSales([]);
+    setReturns([]);
+    setStockAdjustments([]);
+    setSavedCarts([]);
+    setPendingPrescriptionForPOS(null);
+
+    // Clear operational local storage keys
+    const operationalKeys = ['suppliers', 'customers', 'prescriptions', 'purchaseOrders', 'sales', 'returns', 'stockAdjustments', 'savedCarts'];
+    operationalKeys.forEach(k => {
+      localStorage.removeItem(LOCAL_STORAGE_PREFIX + k);
+    });
+
+    // Wipe remote firestore collections
+    purgeAppCollectionsExceptAdmin().catch(() => {});
+
+    addAuditLog({
+      module: 'backup_restore',
+      action: 'OPERATIONAL_DATA_PURGED',
+      details: 'All system sales, refunds, purchase orders, suppliers, prescriptions, patients, returns, and held carts cleared for all time.',
+    });
+
+    showToast({
+      title: 'Operational Data Cleared',
+      message: 'All system sales, refunds, purchase orders, suppliers, prescriptions, patients, and returns have been cleared.',
+      type: 'success',
+      durationMs: 4000
+    });
+  };
+
   const resetDatabaseToDefault = () => {
     setSettings(initialSettings);
     setUsers(initialUsers);
@@ -2329,25 +2367,29 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     setCategories(initialCategories);
     setMedicines(initialMedicines);
     setBatches(initialBatches);
-    setSuppliers(initialSuppliers);
-    setCustomers(initialCustomers);
-    setPrescriptions(initialPrescriptions);
-    setPurchaseOrders(initialPurchaseOrders);
-    setSales(initialSales);
-    setReturns(initialReturns);
-    setStockAdjustments(initialStockAdjustments);
+    setSuppliers([]);
+    setCustomers([]);
+    setPrescriptions([]);
+    setPurchaseOrders([]);
+    setSales([]);
+    setReturns([]);
+    setStockAdjustments([]);
+    setSavedCarts([]);
     setAuditLogs(initialAuditLogs);
     setReadNotificationIds([]);
+    setPendingPrescriptionForPOS(null);
 
     // Clear local storage
     Object.keys(localStorage)
       .filter(k => k.startsWith(LOCAL_STORAGE_PREFIX))
       .forEach(k => localStorage.removeItem(k));
 
+    purgeAppCollectionsExceptAdmin().catch(() => {});
+
     addAuditLog({
       module: 'backup_restore',
       action: 'DATABASE_RESET_DEFAULT',
-      details: 'System database reset to initial demonstration dataset.',
+      details: 'System database reset. All sales, refunds, purchase orders, suppliers, prescriptions, and patients cleared.',
     });
   };
 
@@ -2444,6 +2486,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
         restoreDatabaseBackup: importDatabase,
         resetDatabaseToDefault,
         resetToDefaultSeedData: resetDatabaseToDefault,
+        clearAllOperationalData,
         lowStockMedicines,
         nearExpiryBatches,
         expiredBatches,
