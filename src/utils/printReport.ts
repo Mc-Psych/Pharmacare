@@ -730,22 +730,30 @@ export function openReportInNewTab(options: PrintReportOptions): void {
 }
 
 /**
- * Direct print trigger using iframe with multiple robust fallbacks.
+ * Direct print trigger using current window print with multi-tier iframe fallback.
  */
 export function printStructuredReport(options: PrintReportOptions): void {
   try {
+    // Strategy 1: Direct native window print if modal is open
+    const modalPrintArea = document.getElementById('report-printable-area');
+    if (modalPrintArea) {
+      window.focus();
+      window.print();
+      return;
+    }
+
+    // Strategy 2: Offscreen iframe print
     const html = generateReportHtml(options);
     const existingFrame = document.getElementById('pharmacy-report-print-frame');
     if (existingFrame) existingFrame.remove();
 
     const printIframe = document.createElement('iframe');
     printIframe.id = 'pharmacy-report-print-frame';
-    // Use non-zero offscreen geometry so rendering engines do not discard print layouts
     printIframe.style.position = 'fixed';
     printIframe.style.top = '-9999px';
     printIframe.style.left = '-9999px';
-    printIframe.style.width = '800px';
-    printIframe.style.height = '1000px';
+    printIframe.style.width = '850px';
+    printIframe.style.height = '1100px';
     printIframe.style.border = 'none';
     printIframe.style.opacity = '0.01';
     printIframe.style.pointerEvents = 'none';
@@ -753,7 +761,7 @@ export function printStructuredReport(options: PrintReportOptions): void {
 
     const frameDoc = printIframe.contentWindow?.document;
     if (!frameDoc) {
-      openReportInNewTab(options);
+      downloadReportPdf(options);
       return;
     }
 
@@ -766,18 +774,18 @@ export function printStructuredReport(options: PrintReportOptions): void {
         printIframe.contentWindow?.focus();
         printIframe.contentWindow?.print();
       } catch (err) {
-        console.warn('Iframe print blocked by sandbox, opening new tab:', err);
-        openReportInNewTab(options);
+        console.warn('Iframe print blocked by sandbox, downloading PDF fallback:', err);
+        downloadReportPdf(options);
       } finally {
         setTimeout(() => {
           if (printIframe && printIframe.parentNode) {
             printIframe.parentNode.removeChild(printIframe);
           }
-        }, 5000);
+        }, 3000);
       }
     }, 350);
   } catch (e) {
-    console.error('Print utility failed, falling back to new window:', e);
-    openReportInNewTab(options);
+    console.error('Print utility failed, downloading PDF directly:', e);
+    downloadReportPdf(options);
   }
 }
