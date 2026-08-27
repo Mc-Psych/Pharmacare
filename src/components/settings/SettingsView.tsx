@@ -29,7 +29,9 @@ import {
   CheckCircle2,
   X,
   Eye,
-  Info
+  Info,
+  PenTool,
+  FileSignature
 } from 'lucide-react';
 
 // Preset sample pharmacy logos for instant branding selection
@@ -68,12 +70,16 @@ export const SettingsView: React.FC = () => {
     systemLogo: settings.systemLogo || settings.logoUrl || '',
     logoUrl: settings.logoUrl || settings.systemLogo || '',
     logoSize: settings.logoSize || 48,
+    superintendentSignatureUrl: settings.superintendentSignatureUrl || settings.signatureURL || settings.signatureUrl || '',
+    signatureURL: settings.signatureURL || settings.superintendentSignatureUrl || settings.signatureUrl || '',
+    signatureUrl: settings.signatureUrl || settings.superintendentSignatureUrl || settings.signatureURL || '',
   });
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [backupMsg, setBackupMsg] = useState('');
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState('');
+  const [signatureUploadError, setSignatureUploadError] = useState('');
 
   // Confirmation warning window modal state
   const [confirmModal, setConfirmModal] = useState<{
@@ -116,6 +122,7 @@ export const SettingsView: React.FC = () => {
   });
 
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   // Synchronize with external settings updates
@@ -127,6 +134,9 @@ export const SettingsView: React.FC = () => {
       systemLogo: settings.systemLogo || settings.logoUrl || prev.systemLogo || '',
       logoUrl: settings.logoUrl || settings.systemLogo || prev.logoUrl || '',
       logoSize: settings.logoSize || prev.logoSize || 48,
+      superintendentSignatureUrl: settings.superintendentSignatureUrl || settings.signatureURL || settings.signatureUrl || prev.superintendentSignatureUrl || '',
+      signatureURL: settings.signatureURL || settings.superintendentSignatureUrl || settings.signatureUrl || prev.signatureURL || '',
+      signatureUrl: settings.signatureUrl || settings.superintendentSignatureUrl || settings.signatureURL || prev.signatureUrl || '',
     }));
   }, [settings]);
 
@@ -242,6 +252,51 @@ export const SettingsView: React.FC = () => {
     }));
     if (logoInputRef.current) {
       logoInputRef.current.value = '';
+    }
+  };
+
+  const handleSignatureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSignatureUploadError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setSignatureUploadError('Please select a valid image file (PNG, JPG, SVG, or WebP).');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setSignatureUploadError('Signature file size exceeds 2MB limit.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setFormData(prev => ({
+          ...prev,
+          superintendentSignatureUrl: dataUrl,
+          signatureURL: dataUrl,
+          signatureUrl: dataUrl,
+        }));
+      }
+    };
+    reader.onerror = () => {
+      setSignatureUploadError('Failed to read signature image.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveSignature = () => {
+    setFormData(prev => ({
+      ...prev,
+      superintendentSignatureUrl: '',
+      signatureURL: '',
+      signatureUrl: '',
+    }));
+    if (signatureInputRef.current) {
+      signatureInputRef.current.value = '';
     }
   };
 
@@ -880,6 +935,97 @@ export const SettingsView: React.FC = () => {
                 placeholder="e.g. Ring Road Central, Adabraka, Accra, Ghana"
                 className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
+            </div>
+          </div>
+
+          {/* Superintendent Pharmacist Digital Sign-off Section */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FileSignature className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-900">
+                    Superintendent Pharmacist Official Sign-Off Signature
+                  </span>
+                </div>
+                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
+                  Used in Official Audit & Stock Reports
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Upload the authorized signature of the Superintendent Pharmacist / Pharmacist-in-Charge. This digital signature automatically authenticates all printed Audit Ledgers, Executive Summaries, and Prescription Dispensing records.
+              </p>
+
+              <input
+                ref={signatureInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                onChange={handleSignatureFileChange}
+                className="hidden"
+              />
+
+              {formData.superintendentSignatureUrl || formData.signatureURL || formData.signatureUrl ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-white border border-slate-200 rounded-xl">
+                  <div className="flex items-center space-x-3.5">
+                    <div className="h-14 w-36 bg-slate-50 border border-slate-200 rounded-lg p-1.5 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={formData.superintendentSignatureUrl || formData.signatureURL || formData.signatureUrl}
+                        alt="Superintendent Signature Preview"
+                        className="max-h-12 max-w-full object-contain"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-slate-900 flex items-center">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mr-1 shrink-0" />
+                        Signature Active & Configured
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-0.5">
+                        Will appear on PDF exports and print-ready reports
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => signatureInputRef.current?.click()}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveSignature}
+                      className="px-3 py-1.5 text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer flex items-center"
+                    >
+                      <Trash2 className="w-3 h-3 mr-1" />
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => signatureInputRef.current?.click()}
+                  className="border border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-4 text-center cursor-pointer bg-white hover:bg-emerald-50/40 transition-all"
+                >
+                  <div className="flex flex-col items-center justify-center space-y-1.5">
+                    <PenTool className="w-5 h-5 text-emerald-600" />
+                    <span className="text-xs font-bold text-emerald-700">
+                      Upload Superintendent Pharmacist Signature
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      Supports PNG with transparent background or high-res JPG (Max 2MB)
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {signatureUploadError && (
+                <p className="text-xs text-rose-600 font-semibold flex items-center">
+                  <AlertTriangle className="w-3.5 h-3.5 mr-1 shrink-0" />
+                  {signatureUploadError}
+                </p>
+              )}
             </div>
           </div>
         </div>

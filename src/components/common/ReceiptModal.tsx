@@ -236,6 +236,19 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
 
       let y = 8;
 
+      // Pharmacy Logo in Receipt PDF
+      const logoUrl = settings.systemLogo || settings.logoUrl;
+      if (logoUrl && (logoUrl.startsWith('data:image/png') || logoUrl.startsWith('data:image/jpeg') || logoUrl.startsWith('data:image/webp') || logoUrl.startsWith('http'))) {
+        try {
+          const logoWidth = isThermal ? 22 : 30;
+          const logoHeight = isThermal ? 9 : 12;
+          doc.addImage(logoUrl, 'PNG', (pageWidth - logoWidth) / 2, y, logoWidth, logoHeight);
+          y += logoHeight + 3;
+        } catch (err) {
+          // fallback if image format unsupported
+        }
+      }
+
       // Pharmacy Header
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(isThermal ? 10.5 : 15);

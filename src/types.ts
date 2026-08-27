@@ -14,6 +14,8 @@ export interface User {
   mustChangePasswordOnLogin?: boolean;
   customPermissions?: Partial<Record<PermissionKey, boolean>>;
   photoURL?: string;
+  signatureURL?: string;
+  signatureUrl?: string;
   department?: string;
   employeeId?: string;
 }
@@ -413,6 +415,9 @@ export interface PharmacySettings {
   systemLogo?: string;
   logoUrl?: string;
   logoSize?: number; // Size/height in px (e.g. 28 - 120, default 44)
+  signatureURL?: string;
+  signatureUrl?: string;
+  superintendentSignatureUrl?: string;
   pharmacyName: string;
   licenseNumber: string;
   address: string;

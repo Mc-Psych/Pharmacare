@@ -181,9 +181,19 @@ export const ReportPrintModal: React.FC<ReportPrintModalProps> = ({
               {/* Top Letterhead - Matches PDF Header Banner */}
               <div className="border-b-2 border-slate-900 pb-5 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="flex items-start space-x-3.5">
-                  <div className="w-13 h-13 bg-emerald-800 text-white rounded-xl flex items-center justify-center font-black text-2xl tracking-tighter flex-shrink-0 shadow-xs">
-                    Rx
-                  </div>
+                  {pharmacySettings.systemLogo || pharmacySettings.logoUrl ? (
+                    <div className="max-h-14 max-w-36 bg-white p-1 rounded-xl border border-slate-200 flex items-center justify-center flex-shrink-0 shadow-xs overflow-hidden">
+                      <img
+                        src={pharmacySettings.systemLogo || pharmacySettings.logoUrl}
+                        alt={pharmacySettings.pharmacyName || 'Pharmacy Logo'}
+                        className="max-h-12 max-w-32 object-contain"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-13 h-13 bg-emerald-800 text-white rounded-xl flex items-center justify-center font-black text-2xl tracking-tighter flex-shrink-0 shadow-xs">
+                      Rx
+                    </div>
+                  )}
                   <div>
                     <h1 className="text-xl font-black text-slate-900 tracking-tight leading-tight">
                       {pharmacySettings.pharmacyName || 'PharmaCare Pharmacy Ltd'}
@@ -363,10 +373,18 @@ export const ReportPrintModal: React.FC<ReportPrintModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-end">
                     {/* Left: Superintendent / Auditor Signature */}
                     <div className="space-y-4">
-                      <div className="border-b border-slate-900 pb-1 h-10 flex items-end">
-                        <span className="text-[10px] text-slate-400 font-mono italic">
-                          Authorized Signature
-                        </span>
+                      <div className="border-b border-slate-900 pb-1 min-h-[44px] flex items-end justify-start">
+                        {(options.signatureUrl || options.superintendentSignatureUrl || pharmacySettings.signatureURL || pharmacySettings.signatureUrl) ? (
+                          <img
+                            src={options.signatureUrl || options.superintendentSignatureUrl || pharmacySettings.signatureURL || pharmacySettings.signatureUrl}
+                            alt="Authorized Signature"
+                            className="max-h-12 max-w-[140px] object-contain mb-0.5"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-mono italic">
+                            Authorized Signature
+                          </span>
+                        )}
                       </div>
                       <div className="text-[11px] text-slate-700 space-y-0.5">
                         <p className="font-bold text-slate-900">
@@ -376,7 +394,7 @@ export const ReportPrintModal: React.FC<ReportPrintModalProps> = ({
                           Role: {options.signOffRole || 'Pharmacist-in-Charge'}
                         </p>
                         <p className="text-slate-500 text-[10px]">
-                          Date: ____ / ____ / 2026
+                          Date: {new Date().toLocaleDateString('en-GB')}
                         </p>
                       </div>
                     </div>
@@ -396,12 +414,20 @@ export const ReportPrintModal: React.FC<ReportPrintModalProps> = ({
 
                     {/* Right: Prepared By Signature */}
                     <div className="space-y-4">
-                      <div className="border-b border-slate-900 pb-1 h-10 flex items-end">
-                        <span className="text-[10px] text-slate-400 font-mono italic">
-                          Audit Officer Signature
-                        </span>
+                      <div className="border-b border-slate-900 pb-1 min-h-[44px] flex items-end justify-start sm:justify-end">
+                        {options.preparedBySignatureUrl ? (
+                          <img
+                            src={options.preparedBySignatureUrl}
+                            alt="Prepared By Signature"
+                            className="max-h-12 max-w-[140px] object-contain mb-0.5"
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-mono italic">
+                            Audit Officer Signature
+                          </span>
+                        )}
                       </div>
-                      <div className="text-[11px] text-slate-700 space-y-0.5">
+                      <div className="text-[11px] text-slate-700 space-y-0.5 sm:text-right">
                         <p className="font-bold text-slate-900">
                           Prepared By: {options.generatedBy || 'Authorized Officer'}
                         </p>

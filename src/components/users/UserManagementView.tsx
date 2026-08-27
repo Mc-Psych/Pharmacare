@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
 import { User, UserRole, PermissionKey, RBACMatrix } from '../../types';
 import {
@@ -22,7 +22,10 @@ import {
   Lock,
   Sparkles,
   Search,
-  Filter
+  Filter,
+  PenTool,
+  UploadCloud,
+  FileSignature
 } from 'lucide-react';
 
 interface PermissionDefinition {
@@ -128,6 +131,27 @@ export const UserManagementView: React.FC = () => {
   const [status, setStatus] = useState<'active' | 'inactive'>('active');
   const [initialPassword, setInitialPassword] = useState('Pharmacy@123');
   const [mustChangeInitialPassword, setMustChangeInitialPassword] = useState(true);
+  const [signatureUrl, setSignatureUrl] = useState('');
+  const [signatureError, setSignatureError] = useState('');
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSignatureError('');
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setSignatureError('Signature image must be under 2MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      setSignatureUrl(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleOpenAdd = () => {
     setEditingUser(null);
@@ -138,6 +162,8 @@ export const UserManagementView: React.FC = () => {
     setStatus('active');
     setInitialPassword('Pharmacy@123');
     setMustChangeInitialPassword(true);
+    setSignatureUrl('');
+    setSignatureError('');
     setIsAddModalOpen(true);
   };
 
@@ -149,6 +175,8 @@ export const UserManagementView: React.FC = () => {
     setRole(user.role);
     setStatus(user.status || (user.isActive !== false ? 'active' : 'inactive'));
     setMustChangeInitialPassword(Boolean(user.mustChangePasswordOnLogin));
+    setSignatureUrl(user.signatureURL || user.signatureUrl || '');
+    setSignatureError('');
     setIsAddModalOpen(true);
   };
 
@@ -163,6 +191,8 @@ export const UserManagementView: React.FC = () => {
         status,
         isActive: status === 'active',
         mustChangePasswordOnLogin: mustChangeInitialPassword,
+        signatureURL: signatureUrl || undefined,
+        signatureUrl: signatureUrl || undefined,
       });
       setStatusMessage(`Updated user profile for ${name}.`);
     } else {
@@ -174,6 +204,8 @@ export const UserManagementView: React.FC = () => {
         status,
         isActive: status === 'active',
         mustChangePasswordOnLogin: mustChangeInitialPassword,
+        signatureURL: signatureUrl || undefined,
+        signatureUrl: signatureUrl || undefined,
       });
       setStatusMessage(`Added new user ${name} with default credentials.`);
     }
@@ -450,6 +482,15 @@ export const UserManagementView: React.FC = () => {
                               {isCurrent && (
                                 <span className="ml-2 text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.2 rounded font-normal">
                                   You
+                                </span>
+                              )}
+                              {(user.signatureURL || user.signatureUrl) && (
+                                <span
+                                  className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                  title="Official Digital Signature on file"
+                                >
+                                  <FileSignature className="w-2.5 h-2.5 mr-0.5 text-emerald-600" />
+                                  Signed
                                 </span>
                               )}
                             </div>
@@ -754,6 +795,97 @@ export const UserManagementView: React.FC = () => {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive / Suspended</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Digital Signature Upload Section for Pharmacists and Admins */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <PenTool className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-900">Official Digital Signature</span>
+                  </div>
+                  {(role === 'admin' || role === 'pharmacist') && (
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-md">
+                      Required on Reports & Prescriptions
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Upload an official transparent signature image (PNG, JPG, WebP) used on system audit reports, prescriptions, and official documents.
+                </p>
+
+                <div className="space-y-2">
+                  <input
+                    ref={signatureInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    onChange={handleSignatureUpload}
+                    className="hidden"
+                  />
+
+                  {signatureUrl ? (
+                    <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                      <div className="flex items-center space-x-3">
+                        <div className="h-12 w-28 bg-slate-50 border border-slate-200 rounded-lg p-1 flex items-center justify-center overflow-hidden">
+                          <img
+                            src={signatureUrl}
+                            alt="Signature Preview"
+                            className="max-h-10 max-w-full object-contain"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-800 flex items-center">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mr-1" />
+                            Signature Attached
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            Will appear in sign-off sections
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => signatureInputRef.current?.click()}
+                          className="px-2.5 py-1 text-[11px] font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                        >
+                          Change
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSignatureUrl('')}
+                          className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Remove signature"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => signatureInputRef.current?.click()}
+                      className="border border-dashed border-slate-300 hover:border-emerald-500 rounded-xl p-4 text-center cursor-pointer bg-white hover:bg-emerald-50/30 transition-all"
+                    >
+                      <div className="flex flex-col items-center justify-center space-y-1">
+                        <UploadCloud className="w-5 h-5 text-slate-400" />
+                        <span className="text-xs font-bold text-emerald-700">
+                          Click to upload signature image
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          PNG or JPG with transparent/white background (Max 2MB)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {signatureError && (
+                    <p className="text-[11px] text-rose-600 font-semibold flex items-center">
+                      <AlertCircle className="w-3 h-3 mr-1" />
+                      {signatureError}
+                    </p>
+                  )}
                 </div>
               </div>
 
