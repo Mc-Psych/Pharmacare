@@ -18,6 +18,7 @@ import { nhisCategories, nhisGhanaMedicines, nhisInitialBatches } from './nhisMe
 export const initialSettings: PharmacySettings = {
   systemName: 'PharmaCare PMS',
   systemLogo: '',
+  logoSize: 48,
   pharmacyName: 'PharmaCare Pharmacy',
   licenseNumber: 'PHA-GH-2026-98421',
   address: 'Ring Road Central, Adabraka, Accra, Ghana',

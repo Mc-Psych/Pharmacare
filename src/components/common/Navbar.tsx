@@ -72,7 +72,13 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Left side: System Status / Pharmacy Branding Info */}
         <div className="flex items-center space-x-3">
           {(settings.systemLogo || settings.logoUrl) && (
-            <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-200 bg-white p-0.5 shrink-0 flex items-center justify-center">
+            <div 
+              style={{
+                width: `${Math.min(Math.max(settings.logoSize || 40, 28), 56)}px`,
+                height: `${Math.min(Math.max(settings.logoSize || 40, 28), 56)}px`
+              }}
+              className="rounded-xl overflow-hidden border border-slate-200 bg-white p-0.5 shrink-0 flex items-center justify-center transition-all shadow-2xs"
+            >
               <img
                 src={settings.systemLogo || settings.logoUrl}
                 alt={settings.systemName || settings.pharmacyName || 'System Logo'}

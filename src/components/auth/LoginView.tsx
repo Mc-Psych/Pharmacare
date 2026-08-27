@@ -360,7 +360,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
                   <img
                     src={settings.systemLogo || settings.logoUrl}
                     alt={settings.pharmacyName}
-                    className="max-h-14 max-w-[160px] object-contain"
+                    style={{ maxHeight: `${Math.min(Math.max(settings.logoSize || 56, 40), 110)}px` }}
+                    className="max-w-[220px] object-contain"
                     referrerPolicy="no-referrer"
                   />
                 </div>

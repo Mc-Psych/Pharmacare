@@ -1,12 +1,28 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  doc,
+  getDocFromServer,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  setLogLevel
+} from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
+
+// Suppress internal Firestore connection probes from spamming console
+setLogLevel('error');
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Cloud Firestore using configured database ID
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Initialize Cloud Firestore using configured database ID with forced long polling for optimal connection stability in web/iframe sandbox
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+}, firebaseConfig.firestoreDatabaseId);
+
 export const auth = getAuth(app);
 
 export async function ensureAuth() {
@@ -46,6 +62,13 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): FirestoreErrorInfo {
+  const isOfflineOrUnavailable = error instanceof Error && (
+    error.message.includes('unavailable') ||
+    error.message.includes('offline') ||
+    error.message.includes('Failed to get document because the client is offline') ||
+    error.message.includes('Could not reach Cloud Firestore backend')
+  );
+
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
@@ -62,7 +85,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+
+  if (isOfflineOrUnavailable) {
+    console.warn(`[Firestore Offline Cache] ${operationType.toUpperCase()} on "${path || 'collection'}": operating in resilient local mode.`);
+  } else {
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+  }
   return errInfo;
 }
 
@@ -72,10 +100,11 @@ export async function testConnection(): Promise<boolean> {
     await getDocFromServer(doc(db, 'settings', 'global'));
     return true;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn('Firebase Firestore client is offline or initializing.');
+    if (error instanceof Error && (error.message.includes('client is offline') || error.message.includes('unavailable'))) {
+      console.warn('Firebase Firestore client is operating in offline mode.');
       return false;
     }
     return true;
   }
 }
+

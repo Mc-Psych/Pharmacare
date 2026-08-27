@@ -21,7 +21,15 @@ import {
   Store,
   UserCheck,
   KeyRound,
-  Lock
+  Lock,
+  Minus,
+  Plus,
+  SlidersHorizontal,
+  AlertOctagon,
+  CheckCircle2,
+  X,
+  Eye,
+  Info
 } from 'lucide-react';
 
 // Preset sample pharmacy logos for instant branding selection
@@ -59,12 +67,53 @@ export const SettingsView: React.FC = () => {
     systemName: settings.systemName || 'PharmaCare PMS',
     systemLogo: settings.systemLogo || settings.logoUrl || '',
     logoUrl: settings.logoUrl || settings.systemLogo || '',
+    logoSize: settings.logoSize || 48,
   });
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
   const [backupMsg, setBackupMsg] = useState('');
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState('');
+
+  // Confirmation warning window modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    type: 'purge' | 'reset' | null;
+    title: string;
+    description: string;
+    warningNote: string;
+    affectedList: string[];
+    preservedList?: string[];
+    confirmBtnText: string;
+    accent: 'amber' | 'rose';
+  }>({
+    isOpen: false,
+    type: null,
+    title: '',
+    description: '',
+    warningNote: '',
+    affectedList: [],
+    preservedList: [],
+    confirmBtnText: '',
+    accent: 'amber',
+  });
+
+  // Success popup notification modal state
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    type: 'purge' | 'reset' | null;
+    title: string;
+    summary: string;
+    clearedItems: { label: string; status: string }[];
+    timestamp: string;
+  }>({
+    isOpen: false,
+    type: null,
+    title: '',
+    summary: '',
+    clearedItems: [],
+    timestamp: '',
+  });
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
@@ -77,6 +126,7 @@ export const SettingsView: React.FC = () => {
       systemName: settings.systemName || prev.systemName || 'PharmaCare PMS',
       systemLogo: settings.systemLogo || settings.logoUrl || prev.systemLogo || '',
       logoUrl: settings.logoUrl || settings.systemLogo || prev.logoUrl || '',
+      logoSize: settings.logoSize || prev.logoSize || 48,
     }));
   }, [settings]);
 
@@ -85,6 +135,11 @@ export const SettingsView: React.FC = () => {
     updateSettings(formData);
     setSaveSuccessMsg('System brand identity and configuration saved successfully.');
     setTimeout(() => setSaveSuccessMsg(''), 4500);
+  };
+
+  const handleLogoSizeChange = (newSize: number) => {
+    const clamped = Math.min(Math.max(Math.round(newSize), 24), 120);
+    setFormData(prev => ({ ...prev, logoSize: clamped }));
   };
 
   const processLogoFile = (file: File) => {
@@ -117,7 +172,7 @@ export const SettingsView: React.FC = () => {
       // For raster images (PNG, JPG, WebP), compress and resize to optimal logo dimensions
       const img = new Image();
       img.onload = () => {
-        const MAX_DIM = 240;
+        const MAX_DIM = 320;
         let width = img.width;
         let height = img.height;
 
@@ -144,7 +199,7 @@ export const SettingsView: React.FC = () => {
         ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Export as WebP/PNG at high quality but ultra-compact footprint (~10-25KB)
+        // Export as PNG at high quality
         const compressedDataUrl = canvas.toDataURL('image/png');
         setFormData(prev => ({
           ...prev,
@@ -229,32 +284,97 @@ export const SettingsView: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleResetDefaults = () => {
-    if (
-      window.confirm(
-        'WARNING: This will reset all current transactions, batches, and patient data back to clean system defaults. Proceed?'
-      )
-    ) {
-      resetToDefaultSeedData();
-      window.location.reload();
-    }
+  // Warning Window handlers
+  const openPurgeConfirmation = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'purge',
+      title: 'Warning: Purge All Operational Records',
+      description: 'You are about to permanently erase all transactional history, customer purchases, patient prescriptions, and financial ledgers.',
+      warningNote: 'This action cannot be undone. All operational receipts, refund ledgers, and dispensing records will be permanently removed from Cloud Firestore and local storage.',
+      affectedList: [
+        'All Sales Invoices & Point-of-Sale Transactions',
+        'All Customer Returns, Credit Notes & Refund Ledgers',
+        'All Supplier Purchase Orders & Goods Received Logs',
+        'All Registered Doctor Prescriptions & Dispensing Records',
+        'All Patient Profiles & Customer Registry Records',
+        'All Temporary Held Carts & Manual Stock Discrepancy Adjustments',
+      ],
+      preservedList: [
+        'Master Medicine Catalog & Therapeutic Categories',
+        'Staff User Accounts, Passwords & Access Roles',
+        'Pharmacy Facility Settings, Brand Logo & License Information',
+      ],
+      confirmBtnText: 'Yes, Purge All Operational Records',
+      accent: 'amber',
+    });
   };
 
-  const handleClearOperationalRecords = () => {
-    if (
-      window.confirm(
-        'CONFIRM PURGE: This will permanently delete ALL system sales, refunds, purchase orders, suppliers, prescriptions, patients, returns, and carts for all time. Analytics and financial reports will be cleared. Continue?'
-      )
-    ) {
+  const openResetConfirmation = () => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'reset',
+      title: 'Warning: Factory Baseline Seed Reset',
+      description: 'You are about to reset all system records back to initial factory setup defaults and sample data.',
+      warningNote: 'This will reset current inventory stock, operational history, and catalog data back to the clean demonstration seed baseline.',
+      affectedList: [
+        'Re-initializes all test transactions & sales ledgers',
+        'Restores initial NHIS medicine catalog and baseline stock batches',
+        'Restores default staff user accounts and baseline permissions',
+        'Re-synchronizes Cloud Firestore schema collections',
+      ],
+      preservedList: [
+        'Cloud Firestore database connectivity credentials',
+      ],
+      confirmBtnText: 'Yes, Reset System to Factory Seed',
+      accent: 'rose',
+    });
+  };
+
+  // Execution after confirmation
+  const handleExecuteConfirmedAction = () => {
+    const actionType = confirmModal.type;
+    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+
+    if (actionType === 'purge') {
       if (clearAllOperationalData) {
         clearAllOperationalData();
       }
-      setBackupMsg('All operational, sales, refunds, purchase orders, suppliers, prescriptions, and patient records cleared.');
-      setTimeout(() => setBackupMsg(''), 4000);
+      setSuccessModal({
+        isOpen: true,
+        type: 'purge',
+        title: 'Operational Records Successfully Purged',
+        summary: 'All system sales transactions, refunds, purchase orders, registered prescriptions, and patient records have been permanently cleared.',
+        clearedItems: [
+          { label: 'Sales & Invoices Ledger', status: 'Purged (GH₵ 0.00 Total Revenue)' },
+          { label: 'Returns & Refund Claims', status: 'Purged (0 Active Claims)' },
+          { label: 'Supplier Purchase Orders', status: 'Purged (0 Orders)' },
+          { label: 'Doctor Prescriptions', status: 'Purged (0 Prescriptions)' },
+          { label: 'Patient & Customer Registry', status: 'Purged (0 Records)' },
+          { label: 'Held Carts & Adjustments', status: 'Purged' },
+        ],
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } else if (actionType === 'reset') {
+      resetToDefaultSeedData();
+      setSuccessModal({
+        isOpen: true,
+        type: 'reset',
+        title: 'System Factory Reset Successful',
+        summary: 'The application database has been successfully re-initialized with clean factory seed catalogs, baseline inventory batches, and default configurations.',
+        clearedItems: [
+          { label: 'Medicine Catalog', status: 'Restored Factory NHIS Catalog' },
+          { label: 'Inventory Batches', status: 'Restored Baseline Stock Batches' },
+          { label: 'Operational Records', status: 'Reset to Clean Baseline' },
+          { label: 'System Configurations', status: 'Restored Default Setup' },
+        ],
+        timestamp: new Date().toLocaleTimeString(),
+      });
     }
   };
 
   const activeLogo = formData.systemLogo || formData.logoUrl;
+  const currentLogoSize = formData.logoSize || 48;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -268,7 +388,7 @@ export const SettingsView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Customize facility identity, upload system brand logo, configure tax rules, and manage database snapshots.
+            Customize facility identity, upload and resize system brand logo, configure tax rules, and manage database maintenance.
           </p>
         </div>
 
@@ -285,15 +405,15 @@ export const SettingsView: React.FC = () => {
       </div>
 
       {saveSuccessMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-200">
-          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-200 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{saveSuccessMsg}</span>
         </div>
       )}
 
       {backupMsg && (
-        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-800 text-xs font-bold flex items-center space-x-2">
-          <CheckCircle className="w-4 h-4 text-indigo-600 shrink-0" />
+        <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-2xl text-indigo-800 text-xs font-bold flex items-center space-x-2 shadow-xs">
+          <CheckCircle2 className="w-4 h-4 text-indigo-600 shrink-0" />
           <span>{backupMsg}</span>
         </div>
       )}
@@ -301,33 +421,159 @@ export const SettingsView: React.FC = () => {
       {/* Main Settings Form */}
       <form onSubmit={handleSaveSettings} className="space-y-6">
 
-        {/* Section 1: System Brand Identity & Logo Upload */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-6">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+        {/* Section 1: System Brand Identity & Enlarged Logo Management */}
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-100/80 flex items-center justify-center text-indigo-600 shadow-xs">
                 <ImageIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">System Brand Logo & Visual Identity</h3>
-                <p className="text-[11px] text-slate-500">
-                  Upload your pharmacy clinic logo. It will appear on the top navigation, sidebar, point-of-sale thermal receipts, and printable audit reports.
+                <h3 className="text-base font-bold text-slate-900">System Brand Logo & Dynamic Sizing</h3>
+                <p className="text-xs text-slate-500">
+                  Upload your pharmacy clinic logo, scale its size to your preference, and save to apply across top navigation, sidebar, receipts, and login screens.
                 </p>
               </div>
             </div>
             {activeLogo && (
-              <span className="hidden sm:inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                <CheckCircle className="w-3.5 h-3.5 mr-1" />
-                Custom Logo Active
-              </span>
+              <div className="flex items-center space-x-2 shrink-0">
+                <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                  <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                  Logo Active ({currentLogoSize}px)
+                </span>
+              </div>
             )}
+          </div>
+
+          {/* Enlarged Brand Showcase Display Canvas */}
+          <div className="p-6 bg-gradient-to-br from-slate-50 via-slate-50/50 to-indigo-50/30 rounded-2xl border border-slate-200">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              {/* Logo Stage Canvas */}
+              <div className="flex flex-col items-center justify-center flex-1 w-full text-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
+                  Brand Logo Live Stage
+                </span>
+                <div className="w-full min-h-[160px] sm:min-h-[190px] bg-white rounded-2xl border border-slate-200/80 shadow-inner flex items-center justify-center p-6 relative overflow-hidden bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]">
+                  {activeLogo ? (
+                    <div className="flex flex-col items-center justify-center space-y-2 transition-all duration-200">
+                      <img
+                        src={activeLogo}
+                        alt="Active Brand Logo"
+                        style={{ maxHeight: `${currentLogoSize}px`, maxWidth: '280px' }}
+                        className="object-contain drop-shadow-sm transition-all duration-200"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-slate-400 space-y-2">
+                      <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+                        <ImageIcon className="w-8 h-8" />
+                      </div>
+                      <p className="text-xs font-semibold">No custom logo uploaded yet</p>
+                      <p className="text-[11px] text-slate-400">Default PharmaCare typography & shield emblem will be used</p>
+                    </div>
+                  )}
+                  {activeLogo && (
+                    <div className="absolute top-3 right-3 px-2 py-0.5 bg-slate-900/80 text-white text-[10px] font-mono font-semibold rounded-md backdrop-blur-xs">
+                      Height: {currentLogoSize}px
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Logo Size Control Panel */}
+              <div className="w-full md:w-80 lg:w-96 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 shrink-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
+                    <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                    <span>Adjust Logo Sizing</span>
+                  </span>
+                  <span className="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-100">
+                    {currentLogoSize} px
+                  </span>
+                </div>
+
+                {/* Range Slider + Steppers */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => handleLogoSizeChange(currentLogoSize - 4)}
+                      disabled={currentLogoSize <= 24}
+                      title="Decrease logo size"
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="range"
+                      min={24}
+                      max={120}
+                      step={2}
+                      value={currentLogoSize}
+                      onChange={(e) => handleLogoSizeChange(Number(e.target.value))}
+                      className="w-full accent-indigo-600 cursor-pointer h-2 bg-slate-200 rounded-lg"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleLogoSizeChange(currentLogoSize + 4)}
+                      disabled={currentLogoSize >= 120}
+                      title="Increase logo size"
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-slate-400 font-semibold px-1">
+                    <span>24px (Compact)</span>
+                    <span>48px (Standard)</span>
+                    <span>120px (Maximum)</span>
+                  </div>
+                </div>
+
+                {/* Quick Preset Sizing Pills */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Quick Presets</span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { label: 'Compact', size: 32 },
+                      { label: 'Standard', size: 48 },
+                      { label: 'Large', size: 64 },
+                      { label: 'Prominent', size: 80 },
+                      { label: 'Extra Large', size: 96 },
+                      { label: 'Maximum', size: 120 }
+                    ].map((preset) => {
+                      const isActive = currentLogoSize === preset.size;
+                      return (
+                        <button
+                          key={preset.size}
+                          type="button"
+                          onClick={() => handleLogoSizeChange(preset.size)}
+                          className={`py-1.5 px-2 text-[11px] font-bold rounded-xl border transition-all cursor-pointer ${
+                            isActive
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                          }`}
+                        >
+                          {preset.label} ({preset.size}px)
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-slate-400 italic">
+                  💡 Tip: Click "Save Brand & Configuration Changes" below after adjusting to persist your logo size across all devices.
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left: Upload Zone & Controls (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
               <label className="block text-xs font-bold text-slate-700">
-                Upload Brand Logo File (PNG, JPG, SVG, WebP)
+                Upload New Brand Logo File (PNG, JPG, SVG, WebP)
               </label>
 
               {/* Drag & Drop Area */}
@@ -356,12 +602,12 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <span className="text-xs font-bold text-indigo-600 hover:underline">
-                      Click to upload logo
+                      Click to choose brand logo
                     </span>
-                    <span className="text-xs text-slate-500"> or drag and drop image here</span>
+                    <span className="text-xs text-slate-500"> or drag and drop image file here</span>
                   </div>
                   <p className="text-[10px] text-slate-400">
-                    Transparent PNG, SVG, or high-res JPG (Max 3MB • Recommended: Square or 3:1 Ratio)
+                    Transparent PNG, SVG, or high-res JPG (Max 5MB • Recommended: Square or Horizontal)
                   </p>
                 </div>
               </div>
@@ -409,7 +655,7 @@ export const SettingsView: React.FC = () => {
                         onClick={() => handleSelectPresetLogo(preset.svg)}
                         className={`flex flex-col items-center p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20'
+                            ? 'border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20 shadow-xs'
                             : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50'
                         }`}
                       >
@@ -436,9 +682,9 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center justify-between pb-1">
                 <span className="text-xs font-bold text-slate-800 flex items-center space-x-1.5">
                   <Layers className="w-4 h-4 text-indigo-600" />
-                  <span>Live System Previews</span>
+                  <span>Live Multi-Theme Previews</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">Automatic multi-theme styling</span>
+                <span className="text-[10px] text-slate-400 font-medium">Auto-scales at {currentLogoSize}px</span>
               </div>
 
               {/* Preview 1: Light Navbar Header */}
@@ -446,7 +692,13 @@ export const SettingsView: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Top Navigation Bar</span>
                 <div className="p-3 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center space-x-3">
                   {activeLogo ? (
-                    <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-200 bg-white p-0.5 shrink-0 flex items-center justify-center">
+                    <div 
+                      style={{
+                        width: `${Math.min(Math.max(currentLogoSize, 28), 54)}px`,
+                        height: `${Math.min(Math.max(currentLogoSize, 28), 54)}px`
+                      }}
+                      className="rounded-xl overflow-hidden border border-slate-200 bg-white p-0.5 shrink-0 flex items-center justify-center transition-all"
+                    >
                       <img
                         src={activeLogo}
                         alt="Logo Preview"
@@ -475,7 +727,13 @@ export const SettingsView: React.FC = () => {
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Dark Sidebar Header</span>
                 <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 text-white flex items-center space-x-3">
                   {activeLogo ? (
-                    <div className="w-9 h-9 rounded-xl overflow-hidden bg-white p-1 border border-slate-700 shrink-0 flex items-center justify-center">
+                    <div 
+                      style={{
+                        width: `${Math.min(Math.max(currentLogoSize, 32), 60)}px`,
+                        height: `${Math.min(Math.max(currentLogoSize, 32), 60)}px`
+                      }}
+                      className="rounded-xl overflow-hidden bg-white p-1 border border-slate-700 shrink-0 flex items-center justify-center transition-all"
+                    >
                       <img
                         src={activeLogo}
                         alt="Sidebar Preview"
@@ -508,7 +766,8 @@ export const SettingsView: React.FC = () => {
                       <img
                         src={activeLogo}
                         alt="Receipt Preview"
-                        className="max-h-8 max-w-[100px] object-contain"
+                        style={{ maxHeight: `${Math.min(Math.max(currentLogoSize, 28), 64)}px` }}
+                        className="max-w-[140px] object-contain transition-all"
                         referrerPolicy="no-referrer"
                       />
                     </div>
@@ -533,279 +792,255 @@ export const SettingsView: React.FC = () => {
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
             <Building className="w-5 h-5 text-indigo-600" />
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Pharmacy License & Facility Profile</h3>
-              <p className="text-xs text-slate-500">Official registry details displayed on customer receipts and Pharmacy Council reports.</p>
-            </div>
+            <h3 className="text-sm font-bold text-slate-900">Pharmacy Facility Profile & Naming</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">System Software Display Name *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Software System Branding Name
+              </label>
               <input
                 type="text"
-                required
-                value={formData.systemName}
+                value={formData.systemName || ''}
                 onChange={(e) => setFormData({ ...formData, systemName: e.target.value })}
                 placeholder="e.g. PharmaCare PMS"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                Displayed in browser title, navbar header, and login terminals.
+              </span>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Pharmacy Facility / Trade Name *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Licensed Pharmacy Facility Name <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
                 required
                 value={formData.pharmacyName}
                 onChange={(e) => setFormData({ ...formData, pharmacyName: e.target.value })}
-                placeholder="e.g. PharmaCare Pharmacy"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+                placeholder="e.g. PharmaCare Pharmacy Ltd"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                Official legal entity name printed on sales receipts and tax invoices.
+              </span>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Pharmacy Premises License # (GPC)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Pharmacy Council License / Registration No. <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={formData.licenseNumber}
                 onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
                 placeholder="e.g. PHA-GH-2026-98421"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-mono"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Primary Telephone</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Official Facility Phone / Contact
+              </label>
               <input
                 type="text"
-                value={formData.telephone || formData.phone}
-                onChange={(e) => setFormData({ ...formData, telephone: e.target.value, phone: e.target.value })}
+                value={formData.phone || formData.telephone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value, telephone: e.target.value })}
                 placeholder="e.g. +233 024 174 4004"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Official Contact Email</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Official Email Address
+              </label>
               <input
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="e.g. info@pharmacare-ghana.com"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                placeholder="e.g. contact@pharmacare-ghana.com"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Physical Facility Address</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Physical Premise Address
+              </label>
               <input
                 type="text"
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="e.g. Ring Road Central, Adabraka, Accra, Ghana"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
             </div>
           </div>
         </div>
 
-        {/* Section 3: Financial & Tax Configuration */}
+        {/* Section 3: Financial & Currency Rules */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
-            <DollarSign className="w-5 h-5 text-emerald-600" />
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Financial, Tax & Invoice Formatting</h3>
-              <p className="text-xs text-slate-500">Configure currency codes, sales VAT rate, and receipt headers.</p>
-            </div>
+            <DollarSign className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-sm font-bold text-slate-900">Financial & Currency Standards</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Currency Symbol *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Display Currency Symbol <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
                 required
                 value={formData.currencySymbol}
                 onChange={(e) => setFormData({ ...formData, currencySymbol: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                placeholder="GH₵"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-bold"
               />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                Standard Ghana Cedi symbol: GH₵
+              </span>
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Currency Code (ISO)</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                ISO Currency Code
+              </label>
               <input
                 type="text"
                 value={formData.currencyCode}
                 onChange={(e) => setFormData({ ...formData, currencyCode: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono uppercase"
+                placeholder="GHS"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden uppercase font-mono"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Invoice Number Prefix</label>
-              <input
-                type="text"
-                value={formData.invoicePrefix || 'INV'}
-                onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-mono"
-              />
-            </div>
-
-            <div className="sm:col-span-3 flex items-center space-x-4 pt-2">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Default Sales Tax Rate (%)
+              </label>
               <div className="flex items-center space-x-2">
                 <input
-                  type="checkbox"
-                  id="enableTax"
-                  checked={formData.enableTax}
-                  onChange={(e) => setFormData({ ...formData, enableTax: e.target.checked })}
-                  className="w-4 h-4 text-indigo-600 rounded-sm cursor-pointer"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="100"
+                  value={formData.taxRatePercent}
+                  onChange={(e) => setFormData({ ...formData, taxRatePercent: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
                 />
-                <label htmlFor="enableTax" className="font-semibold text-slate-800 cursor-pointer">
-                  Enable Sales Tax / VAT Calculation on Point-of-Sale
+                <label className="inline-flex items-center space-x-1.5 text-xs text-slate-700 font-semibold cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={formData.enableTax}
+                    onChange={(e) => setFormData({ ...formData, enableTax: e.target.checked })}
+                    className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span>Enable Tax</span>
                 </label>
               </div>
-
-              {formData.enableTax && (
-                <div className="flex items-center space-x-2">
-                  <label className="font-semibold text-slate-700">Tax Rate (%):</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    value={formData.taxRatePercent}
-                    onChange={(e) => setFormData({ ...formData, taxRatePercent: parseFloat(e.target.value) || 0 })}
-                    className="w-20 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg font-bold text-center"
-                  />
-                </div>
-              )}
             </div>
+          </div>
+        </div>
 
-            <div className="sm:col-span-3">
-              <label className="block font-semibold text-slate-700 mb-1">Receipt Header Slogan</label>
+        {/* Section 4: Receipt & POS Document Headers */}
+        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+          <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
+            <FileText className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-sm font-bold text-slate-900">Receipt & Point-of-Sale Print Formatting</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Receipt Header Subtitle
+              </label>
               <input
                 type="text"
-                value={formData.receiptHeader}
+                value={formData.receiptHeader || ''}
                 onChange={(e) => setFormData({ ...formData, receiptHeader: e.target.value })}
-                placeholder="e.g. Quality Healthcare & Compassionate Service"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                placeholder="e.g. Quality Healthcare & Certified Prescription Dispensing"
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
             </div>
 
-            <div className="sm:col-span-3">
-              <label className="block font-semibold text-slate-700 mb-1">Receipt Footer Note / Slogan</label>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Receipt Footer Disclaimer / Advice Note
+              </label>
               <input
                 type="text"
-                value={formData.receiptFooter || formData.receiptFooterNote}
+                value={formData.receiptFooter || formData.receiptFooterNote || ''}
                 onChange={(e) => setFormData({ ...formData, receiptFooter: e.target.value, receiptFooterNote: e.target.value })}
-                placeholder="e.g. Thank you for choosing PharmaCare Pharmacy. Medicate responsibly."
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
+                placeholder="e.g. Keep medicine out of reach of children. Thank you for your patronage."
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
             </div>
           </div>
         </div>
 
-        {/* Section 4: Clinical & Inventory Alerts */}
+        {/* Section 5: Inventory & Operational Thresholds */}
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
-            <AlertTriangle className="w-5 h-5 text-amber-600" />
-            <h3 className="text-sm font-bold text-slate-900">Inventory Alert Thresholds</h3>
+            <Shield className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-sm font-bold text-slate-900">Inventory & Operational Thresholds</h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Near Expiry Warning Window (Days before expiration)
-              </label>
-              <input
-                type="number"
-                min="10"
-                max="365"
-                value={formData.nearExpiryThresholdDays}
-                onChange={(e) => setFormData({ ...formData, nearExpiryThresholdDays: parseInt(e.target.value) || 60 })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
-              />
-              <p className="text-[10px] text-slate-400 mt-1">
-                Batches expiring within this number of days trigger amber alerts.
-              </p>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Default Minimum Stock Reorder Threshold
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Default Low Stock Alert Threshold (Units)
               </label>
               <input
                 type="number"
                 min="1"
                 value={formData.lowStockThresholdDefault}
-                onChange={(e) => setFormData({ ...formData, lowStockThresholdDefault: parseInt(e.target.value) || 15 })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                onChange={(e) => setFormData({ ...formData, lowStockThresholdDefault: parseInt(e.target.value) || 10 })}
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Near-Expiry Alert Window (Days)
+              </label>
+              <input
+                type="number"
+                min="7"
+                value={formData.nearExpiryThresholdDays}
+                onChange={(e) => setFormData({ ...formData, nearExpiryThresholdDays: parseInt(e.target.value) || 60 })}
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Session Idle Timeout (Minutes)
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="240"
+                value={formData.sessionTimeoutMinutes}
+                onChange={(e) => setFormData({ ...formData, sessionTimeoutMinutes: parseInt(e.target.value) || 30 })}
+                className="w-full px-3.5 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"
               />
             </div>
           </div>
         </div>
 
-        {/* Section 5: Terminal Security & Quick Fill Demo Controls */}
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
-                <Lock className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Terminal Authentication & Demo Settings</h3>
-                <p className="text-xs text-slate-500">
-                  Control login security policies and 1-click staff quick fill demo mode.
-                </p>
-              </div>
-            </div>
-            <span className={`px-2.5 py-1 text-[10px] font-bold rounded-full border ${formData.enableDemoLogin ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
-              {formData.enableDemoLogin ? 'Demo Mode Active' : 'Production Secure Mode'}
-            </span>
-          </div>
-
-          <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
-            <div className="flex items-start justify-between">
-              <div className="space-y-1 pr-4">
-                <div className="flex items-center space-x-2">
-                  <UserCheck className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs font-bold text-slate-900">Quick Fill Demo & 1-Click Staff Login</span>
-                </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  When <strong>Disabled</strong> (Default / Production), all staff must manually authenticate with their registered username and password/PIN.
-                  When <strong>Enabled</strong>, 1-click fast login buttons appear on the login screen for rapid onboarding and training demonstrations.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
-                <input
-                  type="checkbox"
-                  checked={!!formData.enableDemoLogin}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setFormData(prev => ({
-                      ...prev,
-                      enableDemoLogin: checked,
-                      enableQuickFillDemo: checked
-                    }));
-                  }}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-              </label>
-            </div>
-
-            <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200 flex items-center justify-between">
-              <span>Admin status: Courage Kay can toggle this setting at any time.</span>
-              <span className="font-semibold text-slate-700">Status: {formData.enableDemoLogin ? 'Enabled' : 'Disabled'}</span>
-            </div>
-          </div>
-        </div>
-
         {/* Save Button */}
-        <div className="flex justify-end pt-2">
+        <div className="flex items-center justify-end space-x-3 pt-2">
           <button
             type="submit"
-            className="inline-flex items-center px-8 py-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md transition-colors cursor-pointer"
+            className="inline-flex items-center px-6 py-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md transition-all cursor-pointer"
           >
             <Save className="w-4 h-4 mr-2" />
             Save Brand & Configuration Changes
@@ -813,54 +1048,36 @@ export const SettingsView: React.FC = () => {
         </div>
       </form>
 
-      {/* Section 5: Offline Backup & Database Snapshot Manager */}
-      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
-          <Database className="w-5 h-5 text-indigo-600" />
+      {/* Section 6: Database Maintenance & System Purge Controls */}
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-xs space-y-6">
+        <div className="flex items-center space-x-3 border-b border-slate-100 pb-4">
+          <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-700">
+            <Database className="w-5 h-5" />
+          </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Offline Database Snapshot & Recovery</h3>
+            <h3 className="text-base font-bold text-slate-900">Database Maintenance & Administrative Controls</h3>
             <p className="text-xs text-slate-500">
-              Export portable encrypted JSON backups or restore data snapshots securely.
+              Export system backups, restore snapshots, purge operational test records, or restore factory baseline.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-          {/* Export */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 flex flex-col justify-between">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Backup & Restore Card */}
+          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3 flex flex-col justify-between">
             <div>
               <h4 className="text-xs font-bold text-slate-900 flex items-center">
-                <Download className="w-4 h-4 mr-1.5 text-indigo-600" />
-                Export Offline Backup
+                <Upload className="w-4 h-4 mr-1.5 text-indigo-600" />
+                Restore Snapshot (.json)
               </h4>
               <p className="text-[11px] text-slate-500 mt-1">
-                Download JSON file containing all sales, inventory, batches, customers, and audit trails.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleDownloadBackup}
-              className="w-full py-2 bg-white border border-slate-300 hover:bg-slate-100 text-slate-800 text-xs font-bold rounded-xl transition-colors mt-3 cursor-pointer"
-            >
-              Export JSON File
-            </button>
-          </div>
-
-          {/* Import */}
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 flex flex-col justify-between">
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 flex items-center">
-                <Upload className="w-4 h-4 mr-1.5 text-emerald-600" />
-                Restore from Backup File
-              </h4>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Upload a valid JSON backup file to overwrite and restore database tables.
+                Upload a verified system backup file to restore database state.
               </p>
             </div>
             <div>
               <input
-                type="file"
                 ref={backupInputRef}
+                type="file"
                 accept=".json"
                 onChange={handleBackupFileSelect}
                 className="hidden"
@@ -868,54 +1085,235 @@ export const SettingsView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => backupInputRef.current?.click()}
-                className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors mt-3 cursor-pointer"
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
               >
                 Select Backup File
               </button>
             </div>
           </div>
 
-          {/* Clear Operational Records */}
-          <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-200 space-y-2 flex flex-col justify-between">
+          {/* Purge Operational Records Card */}
+          <div className="p-5 bg-amber-50/70 rounded-2xl border border-amber-200 space-y-3 flex flex-col justify-between">
             <div>
-              <h4 className="text-xs font-bold text-amber-950 flex items-center">
-                <Trash2 className="w-4 h-4 mr-1.5 text-amber-600" />
-                Purge All Transactions
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-amber-950 flex items-center">
+                  <Trash2 className="w-4 h-4 mr-1.5 text-amber-600" />
+                  Purge Operational Records
+                </h4>
+                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 bg-amber-200/80 text-amber-900 rounded">
+                  Caution
+                </span>
+              </div>
               <p className="text-[11px] text-amber-800 mt-1">
-                Clear all sales, refunds, purchase orders, suppliers, prescriptions, & patients for all time.
+                Permanently purge all sales invoices, refunds, purchase orders, prescriptions, and patient records. Catalog & users are preserved.
               </p>
             </div>
             <button
               type="button"
-              onClick={handleClearOperationalRecords}
-              className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors mt-3 cursor-pointer"
+              onClick={openPurgeConfirmation}
+              className="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center justify-center space-x-1.5"
             >
-              Purge Records
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Purge Records</span>
             </button>
           </div>
 
-          {/* Reset */}
-          <div className="p-4 bg-rose-50/50 rounded-2xl border border-rose-200 space-y-2 flex flex-col justify-between">
+          {/* Seed Factory Reset Card */}
+          <div className="p-5 bg-rose-50/70 rounded-2xl border border-rose-200 space-y-3 flex flex-col justify-between">
             <div>
-              <h4 className="text-xs font-bold text-rose-950 flex items-center">
-                <RotateCcw className="w-4 h-4 mr-1.5 text-rose-600" />
-                Seed Factory Reset
-              </h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-rose-950 flex items-center">
+                  <RotateCcw className="w-4 h-4 mr-1.5 text-rose-600" />
+                  Seed Factory Reset
+                </h4>
+                <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 bg-rose-200/80 text-rose-900 rounded">
+                  Baseline
+                </span>
+              </div>
               <p className="text-[11px] text-rose-800 mt-1">
-                Reset system back to clean initial system setup and configurations.
+                Reset system database back to initial factory setup defaults, baseline stock batches, and standard demonstration catalogs.
               </p>
             </div>
             <button
               type="button"
-              onClick={handleResetDefaults}
-              className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors mt-3 cursor-pointer"
+              onClick={openResetConfirmation}
+              className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs flex items-center justify-center space-x-1.5"
             >
-              Reset System
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset System</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* WARNING CONFIRMATION MODAL WINDOW (Purge Records & Reset System) */}
+      {/* ========================================================================= */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden space-y-0">
+            {/* Modal Header */}
+            <div className={`p-6 border-b ${
+              confirmModal.accent === 'rose' 
+                ? 'bg-rose-50/80 border-rose-100 text-rose-950' 
+                : 'bg-amber-50/80 border-amber-100 text-amber-950'
+            }`}>
+              <div className="flex items-start space-x-3.5">
+                <div className={`p-3 rounded-2xl shrink-0 ${
+                  confirmModal.accent === 'rose'
+                    ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                    : 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
+                }`}>
+                  {confirmModal.accent === 'rose' ? (
+                    <AlertOctagon className="w-6 h-6" />
+                  ) : (
+                    <AlertTriangle className="w-6 h-6" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold text-slate-900 leading-snug">
+                    {confirmModal.title}
+                  </h3>
+                  <p className="text-xs text-slate-600 mt-1">
+                    {confirmModal.description}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Warning Callout */}
+              <div className={`p-3.5 rounded-2xl border text-xs font-semibold flex items-start space-x-2.5 ${
+                confirmModal.accent === 'rose'
+                  ? 'bg-rose-50/60 border-rose-200 text-rose-900'
+                  : 'bg-amber-50/60 border-amber-200 text-amber-900'
+              }`}>
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{confirmModal.warningNote}</span>
+              </div>
+
+              {/* What will be affected list */}
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
+                  Records & Data Affected:
+                </span>
+                <ul className="space-y-1.5">
+                  {confirmModal.affectedList.map((item, idx) => (
+                    <li key={idx} className="flex items-center text-xs text-slate-700 space-x-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0"></span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Preserved items if any */}
+              {confirmModal.preservedList && confirmModal.preservedList.length > 0 && (
+                <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200 space-y-1.5">
+                  <span className="text-[11px] font-bold text-emerald-900 flex items-center space-x-1">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Safely Preserved & Protected:</span>
+                  </span>
+                  <ul className="space-y-1 text-[11px] text-emerald-800">
+                    {confirmModal.preservedList.map((item, idx) => (
+                      <li key={idx} className="flex items-center space-x-1.5">
+                        <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer Controls */}
+            <div className="p-4 sm:p-6 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel & Keep Data
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteConfirmedAction}
+                className={`w-full sm:w-auto px-5 py-2.5 text-xs font-bold text-white rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center space-x-1.5 ${
+                  confirmModal.accent === 'rose'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'
+                    : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                }`}
+              >
+                <span>{confirmModal.confirmBtnText}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* POPUP NOTIFICATION OF SUCCESSFUL PURGE OR RESET */}
+      {/* ========================================================================= */}
+      {successModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-center p-6 sm:p-8 space-y-5">
+            {/* Celebration Icon */}
+            <div className="mx-auto w-16 h-16 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20 animate-bounce duration-1000">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Action Completed • {successModal.timestamp}
+              </span>
+              <h3 className="text-lg font-bold text-slate-900 pt-1">
+                {successModal.title}
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {successModal.summary}
+              </p>
+            </div>
+
+            {/* Checklist of Completed Actions */}
+            <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-left space-y-2">
+              <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
+                Execution Summary:
+              </span>
+              <div className="space-y-1.5">
+                {successModal.clearedItems.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-xs">
+                    <span className="text-slate-600 font-medium">{item.label}</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md text-[11px] border border-emerald-100">
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Close / Acknowledge Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setSuccessModal(prev => ({ ...prev, isOpen: false }));
+              }}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md transition-colors cursor-pointer"
+            >
+              Acknowledge & Continue
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+export default SettingsView;

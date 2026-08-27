@@ -1189,7 +1189,7 @@ export const POSView: React.FC<POSViewProps> = ({ onOpenReceipt, onNavigateTab }
                         </span>
                         <input
                           type="number"
-                          step="0.01"
+                          step="0.1"
                           value={cashierTendered}
                           onChange={(e) => setCashierTendered(e.target.value)}
                           className="w-32 pl-7 pr-3 py-1.5 text-right font-bold text-xs bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-hidden"

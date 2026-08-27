@@ -583,7 +583,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
                   <img
                     src={settings.systemLogo || settings.logoUrl}
                     alt={settings.pharmacyName}
-                    className="max-h-12 max-w-[140px] object-contain"
+                    style={{ maxHeight: `${Math.min(Math.max(settings.logoSize || 48, 32), 90)}px` }}
+                    className="max-w-[180px] object-contain"
                     referrerPolicy="no-referrer"
                   />
                 </div>

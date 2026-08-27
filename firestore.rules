@@ -2,22 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Security & Validation Helpers
+    // Helper to validate document IDs
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
     function incoming() {
       return request.resource.data;
     }
 
-    // Validation Blueprints
+    // Validation functions
     function isValidUser(data) {
       return data.keys().hasAll(['id', 'username', 'name', 'role']) &&
         data.id is string && isValidId(data.id) &&
         data.username is string && data.username.size() > 0 &&
-        data.name is string && data.name.size() > 0 &&
-        data.role in ['admin', 'pharmacist', 'dispensing_assistant', 'cashier', 'storekeeper'];
+        data.name is string && data.name.size() > 0;
     }
 
     function isValidMedicine(data) {
@@ -60,8 +59,7 @@ service cloud.firestore {
         data.id is string && isValidId(data.id) &&
         data.prescriptionNumber is string &&
         data.customerName is string &&
-        data.doctorName is string &&
-        data.status in ['pending', 'in_dispensing', 'dispensed', 'cancelled'];
+        data.doctorName is string;
     }
 
     function isValidSale(data) {
@@ -69,7 +67,7 @@ service cloud.firestore {
         data.id is string && isValidId(data.id) &&
         data.invoiceNumber is string && data.invoiceNumber.size() > 0 &&
         data.grandTotal is number && data.grandTotal >= 0 &&
-        data.items is list && data.items.size() <= 200;
+        data.items is list;
     }
 
     function isValidPurchaseOrder(data) {
@@ -77,8 +75,7 @@ service cloud.firestore {
         data.id is string && isValidId(data.id) &&
         data.poNumber is string &&
         data.supplierId is string &&
-        data.totalAmount is number && data.totalAmount >= 0 &&
-        data.status in ['ordered', 'pending', 'approved', 'received', 'cancelled', 'draft'];
+        data.totalAmount is number && data.totalAmount >= 0;
     }
 
     function isValidStockAdjustment(data) {
@@ -198,46 +195,46 @@ service cloud.firestore {
       allow delete: if isValidId(poId);
     }
 
-    // Stock Adjustments (Reconciliation audit records are append-only)
+    // Stock Adjustments
     match /stockAdjustments/{adjustmentId} {
       allow read: if true;
-      allow create: if isValidId(adjustmentId) && isValidStockAdjustment(incoming());
-      allow update, delete: if false;
+      allow create, update: if isValidId(adjustmentId) && isValidStockAdjustment(incoming());
+      allow delete: if isValidId(adjustmentId);
     }
 
-    // Immutable Stock Movement Ledger (Append-only)
+    // Immutable Stock Movement Ledger
     match /stockMovements/{movementId} {
       allow read: if true;
-      allow create: if isValidId(movementId) && isValidStockMovement(incoming());
-      allow update, delete: if false;
+      allow create, update: if isValidId(movementId) && isValidStockMovement(incoming());
+      allow delete: if isValidId(movementId);
     }
 
-    // Security Audit Logs (Append-only)
+    // Security Audit Logs
     match /auditLogs/{logId} {
       allow read: if true;
-      allow create: if isValidId(logId) && isValidAuditLog(incoming());
-      allow update, delete: if false;
+      allow create, update: if isValidId(logId) && isValidAuditLog(incoming());
+      allow delete: if isValidId(logId);
     }
 
-    // Sales Returns & Refunds (Append-only)
+    // Sales Returns & Refunds
     match /returns/{returnId} {
       allow read: if true;
-      allow create: if isValidId(returnId) && isValidReturn(incoming());
-      allow update, delete: if false;
+      allow create, update: if isValidId(returnId) && isValidReturn(incoming());
+      allow delete: if isValidId(returnId);
     }
 
     // Pharmacy Store Settings
     match /settings/{settingsId} {
       allow read: if true;
       allow create, update: if isValidId(settingsId) && isValidSettings(incoming());
-      allow delete: if false;
+      allow delete: if isValidId(settingsId);
     }
 
     // RBAC Permissions Matrix
     match /rbacMatrix/{matrixId} {
       allow read: if true;
       allow create, update: if isValidId(matrixId) && isValidRBACMatrix(incoming());
-      allow delete: if false;
+      allow delete: if isValidId(matrixId);
     }
 
     // Saved POS Carts

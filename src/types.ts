@@ -412,6 +412,7 @@ export interface PharmacySettings {
   systemName?: string;
   systemLogo?: string;
   logoUrl?: string;
+  logoSize?: number; // Size/height in px (e.g. 28 - 120, default 44)
   pharmacyName: string;
   licenseNumber: string;
   address: string;

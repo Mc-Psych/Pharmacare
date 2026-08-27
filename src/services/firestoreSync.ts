@@ -62,35 +62,35 @@ export async function seedInitialFirestoreData(initialRBACMatrix: RBACMatrix) {
 
       // Seed settings
       const settingsDocRef = doc(db, FirestoreCollections.SETTINGS, 'global');
-      batch.set(settingsDocRef, initialSettings);
+      batch.set(settingsDocRef, JSON.parse(JSON.stringify(initialSettings)));
 
       // Seed RBAC Matrix
       const rbacDocRef = doc(db, FirestoreCollections.RBAC_MATRIX, 'global');
-      batch.set(rbacDocRef, { matrix: initialRBACMatrix, updatedAt: new Date().toISOString() });
+      batch.set(rbacDocRef, { matrix: JSON.parse(JSON.stringify(initialRBACMatrix)), updatedAt: new Date().toISOString() });
 
       // Seed admin user
       initialUsers.forEach(user => {
         const userRef = doc(db, FirestoreCollections.USERS, user.id);
-        batch.set(userRef, user);
+        batch.set(userRef, JSON.parse(JSON.stringify(user)));
       });
 
       // Seed categories
       initialCategories.forEach(cat => {
         const catRef = doc(db, FirestoreCollections.CATEGORIES, cat.id);
-        batch.set(catRef, cat);
+        batch.set(catRef, JSON.parse(JSON.stringify(cat)));
       });
 
       // Seed initial audit log
       initialAuditLogs.forEach(log => {
         const logRef = doc(db, FirestoreCollections.AUDIT_LOGS, log.id);
-        batch.set(logRef, log);
+        batch.set(logRef, JSON.parse(JSON.stringify(log)));
       });
 
       await batch.commit();
       console.log('Firebase Firestore database seeded successfully with Admin account Courage Kay.');
     }
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, 'seedInitialData');
+    console.warn('Notice seeding initial Firestore database:', error);
   }
 }
 

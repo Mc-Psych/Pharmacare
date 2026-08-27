@@ -178,7 +178,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <>
             <div className="flex items-center space-x-3 overflow-hidden">
               {settings.systemLogo || settings.logoUrl ? (
-                <div className="w-10 h-10 rounded-xl overflow-hidden bg-white p-1 border border-slate-700/80 shrink-0 flex items-center justify-center shadow-xs">
+                <div 
+                  style={{
+                    width: `${Math.min(Math.max(settings.logoSize || 44, 32), 64)}px`,
+                    height: `${Math.min(Math.max(settings.logoSize || 44, 32), 64)}px`
+                  }}
+                  className="rounded-xl overflow-hidden bg-white p-1 border border-slate-700/80 shrink-0 flex items-center justify-center shadow-xs transition-all"
+                >
                   <img
                     src={settings.systemLogo || settings.logoUrl}
                     alt={settings.systemName || settings.pharmacyName || 'Brand Logo'}
