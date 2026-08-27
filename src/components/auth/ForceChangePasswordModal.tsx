@@ -18,22 +18,23 @@ export const ForceChangePasswordModal: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    if (!newPassword || newPassword.trim().length < 4) {
-      setError('Password must be at least 4 characters long.');
+    const cleanPass = newPassword.trim();
+    if (!cleanPass || cleanPass.length < 6) {
+      setError('Password must be at least 6 characters long (8+ recommended).');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
+    if (cleanPass !== confirmPassword.trim()) {
       setError('Passwords do not match. Please verify your new password.');
       return;
     }
 
-    if (newPassword === 'admin' || newPassword === '1234' || newPassword === 'Pharmacy@123') {
-      setError('Please choose a unique, secure password different from default system templates.');
+    if (cleanPass.toLowerCase() === 'admin' || cleanPass === '1234' || cleanPass === 'Pharmacy@123' || cleanPass === 'password') {
+      setError('Please choose a unique password different from default system seed templates.');
       return;
     }
 
-    forceChangePasswordOnFirstLogin(newPassword.trim());
+    forceChangePasswordOnFirstLogin(cleanPass);
     setIsSuccess(true);
   };
 

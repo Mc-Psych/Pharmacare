@@ -24,13 +24,29 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
-  const { users, login, settings, updateSettings } = usePharmacy();
+  const { users, login, settings, updateSettings, addAuditLog } = usePharmacy();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showAdminDemoPrompt, setShowAdminDemoPrompt] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
 
   const isDemoEnabled = !!settings.enableDemoLogin;
+
+  // Handle countdown timer for lockout
+  React.useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
 
   const toggleDemoMode = () => {
     updateSettings({
@@ -82,6 +98,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
   };
 
   const handle1ClickUserLogin = (user: User) => {
+    if (lockoutSeconds > 0) {
+      setError(`Terminal locked due to excessive failed attempts. Please wait ${lockoutSeconds}s.`);
+      return;
+    }
     setError('');
     const ok = login(user.id);
     if (ok && onSuccess) {
@@ -91,9 +111,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
 
   const handleManualLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockoutSeconds > 0) {
+      setError(`Terminal security lockout active. Please wait ${lockoutSeconds} seconds before retrying.`);
+      return;
+    }
+
     setError('');
     if (!username.trim()) {
-      setError('Please enter your username, email, or select an account.');
+      setError('Please enter your username or staff email.');
       return;
     }
 
@@ -107,7 +132,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
     );
 
     if (!matched) {
-      setError(`No account found matching "${username}". Please verify your credentials or select an account.`);
+      const newCount = failedAttempts + 1;
+      setFailedAttempts(newCount);
+      if (newCount >= 5) {
+        setLockoutSeconds(60);
+        addAuditLog({
+          module: 'auth',
+          action: 'LOGIN_LOCKOUT_TRIGGERED',
+          details: `5 failed authentication attempts detected for query '${username}'. Terminal locked for 60 seconds.`
+        });
+        setError('Security Lockout: 5 invalid login attempts detected. Terminal temporarily locked for 60 seconds.');
+      } else {
+        setError(`Invalid credentials. Attempt ${newCount} of 5 before temporary lockout.`);
+      }
       return;
     }
 
@@ -118,9 +155,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
 
     const ok = login(matched.id, password.trim());
     if (ok) {
+      setFailedAttempts(0);
       if (onSuccess) onSuccess();
     } else {
-      setError('Authentication failed. Please check your credentials.');
+      const newCount = failedAttempts + 1;
+      setFailedAttempts(newCount);
+      if (newCount >= 5) {
+        setLockoutSeconds(60);
+        addAuditLog({
+          module: 'auth',
+          action: 'LOGIN_LOCKOUT_TRIGGERED',
+          details: `5 failed password attempts on account '${matched.username}'. Terminal locked for 60 seconds.`
+        });
+        setError('Security Lockout: 5 failed attempts. Terminal temporarily locked for 60 seconds.');
+      } else {
+        setError(`Incorrect password for ${matched.name}. Attempt ${newCount} of 5.`);
+      }
     }
   };
 
