@@ -33,7 +33,7 @@ export const initialSettings: PharmacySettings = {
   receiptFooter: 'Thank you for choosing PharmaCare Pharmacy. Medicate responsibly & keep out of reach of children.',
   lowStockThresholdDefault: 20,
   nearExpiryThresholdDays: 60,
-  sessionTimeoutMinutes: 30,
+  sessionTimeoutMinutes: 10,
   allowNegativeStock: false,
   enforcePrescriptionVerification: true,
   autoPrintReceipt: true,

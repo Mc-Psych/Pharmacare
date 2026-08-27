@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { usePharmacy } from '../../context/PharmacyContext';
-import { Lock, Unlock, ShieldCheck, User } from 'lucide-react';
+import { Lock, Unlock, ShieldCheck, User, Clock, AlertCircle } from 'lucide-react';
 
 interface LockScreenModalProps {
   isOpen: boolean;
   onUnlock: () => void;
+  isAutoLocked?: boolean;
 }
 
-export const LockScreenModal: React.FC<LockScreenModalProps> = ({ isOpen, onUnlock }) => {
-  const { currentUser, users, setCurrentUser } = usePharmacy();
+export const LockScreenModal: React.FC<LockScreenModalProps> = ({ isOpen, onUnlock, isAutoLocked }) => {
+  const { currentUser, users, setCurrentUser, settings } = usePharmacy();
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [selectedUserId, setSelectedUserId] = useState(currentUser.id);
 
   if (!isOpen) return null;
+
+  const timeoutMinutes = settings.sessionTimeoutMinutes || 10;
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,9 +41,20 @@ export const LockScreenModal: React.FC<LockScreenModalProps> = ({ isOpen, onUnlo
           <Lock className="w-8 h-8" />
         </div>
 
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold rounded-full mb-3">
+          <Clock className="w-3.5 h-3.5 text-amber-600" />
+          <span>
+            {isAutoLocked
+              ? `Auto-Secured (${timeoutMinutes}m Inactivity)`
+              : `Terminal Security Lock`}
+          </span>
+        </div>
+
         <h2 className="text-xl font-bold text-slate-900">Session Locked</h2>
-        <p className="text-xs text-slate-500 mt-1 mb-6">
-          Terminal secured for patient data privacy and audit compliance.
+        <p className="text-xs text-slate-500 mt-1 mb-5">
+          {isAutoLocked
+            ? `Terminal secured after ${timeoutMinutes} minutes of inactivity to protect sensitive patient records and maintain compliance.`
+            : 'Terminal secured to protect sensitive patient data and prevent unauthorized dispensing.'}
         </p>
 
         {/* User Selection */}
@@ -78,7 +92,7 @@ export const LockScreenModal: React.FC<LockScreenModalProps> = ({ isOpen, onUnlo
 
           <button
             type="submit"
-            className="w-full flex items-center justify-center py-3 px-4 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-colors"
+            className="w-full flex items-center justify-center py-3 px-4 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-md transition-colors cursor-pointer"
           >
             <Unlock className="w-4 h-4 mr-2" />
             Unlock Terminal

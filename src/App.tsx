@@ -9,6 +9,7 @@ import { ReceiptModal } from './components/common/ReceiptModal';
 import { LockScreenModal } from './components/common/LockScreenModal';
 import { ForceChangePasswordModal } from './components/auth/ForceChangePasswordModal';
 import { LoginView } from './components/auth/LoginView';
+import { useIdleTimer } from './hooks/useIdleTimer';
 
 import { DashboardView } from './components/dashboard/DashboardView';
 import { POSView } from './components/pos/POSView';
@@ -29,9 +30,20 @@ const PharmacyAppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('pos');
   const [activeReceiptSale, setActiveReceiptSale] = useState<Sale | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [isAutoLocked, setIsAutoLocked] = useState<boolean>(false);
   const [prefillLowStockPO, setPrefillLowStockPO] = useState<boolean>(false);
 
-  const { currentUser, isAuthenticated, hasPermission } = usePharmacy();
+  const { currentUser, isAuthenticated, hasPermission, settings } = usePharmacy();
+
+  // Automated idle timeout lock (default 10 minutes of inactivity)
+  useIdleTimer({
+    timeoutMinutes: settings.sessionTimeoutMinutes || 10,
+    enabled: isAuthenticated && !isLocked,
+    onIdle: () => {
+      setIsAutoLocked(true);
+      setIsLocked(true);
+    },
+  });
 
   if (!isAuthenticated) {
     return <LoginView />;
@@ -143,7 +155,10 @@ const PharmacyAppContent: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Navbar */}
         <Navbar
-          onLockScreen={() => setIsLocked(true)}
+          onLockScreen={() => {
+            setIsAutoLocked(false);
+            setIsLocked(true);
+          }}
           onNavigateTab={handleNavigateTab}
         />
 
@@ -160,7 +175,14 @@ const PharmacyAppContent: React.FC = () => {
       <ReceiptModal sale={activeReceiptSale} onClose={handleCloseReceipt} />
 
       {/* Screen Lock Security Modal */}
-      <LockScreenModal isOpen={isLocked} onUnlock={() => setIsLocked(false)} />
+      <LockScreenModal
+        isOpen={isLocked}
+        isAutoLocked={isAutoLocked}
+        onUnlock={() => {
+          setIsLocked(false);
+          setIsAutoLocked(false);
+        }}
+      />
 
       {/* Mandatory Password Setup Modal on First Login */}
       <ForceChangePasswordModal />
