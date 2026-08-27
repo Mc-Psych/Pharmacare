@@ -50,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     purchaseOrders,
     logout,
     hasPermission,
+    settings,
   } = usePharmacy();
 
   const pendingRxCount = prescriptions.filter(p => p.status === 'pending').length;
@@ -176,12 +177,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {!isCollapsed ? (
           <>
             <div className="flex items-center space-x-3 overflow-hidden">
-              <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shadow-emerald-500/20 shrink-0 text-base">
-                P
-              </div>
+              {settings.systemLogo || settings.logoUrl ? (
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-white p-1 border border-slate-700/80 shrink-0 flex items-center justify-center shadow-xs">
+                  <img
+                    src={settings.systemLogo || settings.logoUrl}
+                    alt={settings.systemName || settings.pharmacyName || 'Brand Logo'}
+                    className="max-h-full max-w-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ) : (
+                <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shadow-emerald-500/20 shrink-0 text-base">
+                  {(settings.systemName || settings.pharmacyName || 'P')[0]?.toUpperCase()}
+                </div>
+              )}
               <div className="flex flex-col min-w-0">
-                <span className="text-lg font-bold tracking-tight text-white truncate">PharmaCare</span>
-                <span className="text-[10px] text-slate-400 font-medium tracking-wide truncate">PMS • Enterprise</span>
+                <span className="text-base font-bold tracking-tight text-white truncate">
+                  {settings.systemName || settings.pharmacyName || 'PharmaCare'}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium tracking-wide truncate">
+                  {settings.licenseNumber ? `Lic: ${settings.licenseNumber}` : 'PMS • Enterprise'}
+                </span>
               </div>
             </div>
 
@@ -196,9 +212,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </>
         ) : (
           <div className="flex flex-col items-center space-y-2">
-            <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shadow-emerald-500/20 text-base">
-              P
-            </div>
+            {settings.systemLogo || settings.logoUrl ? (
+              <div className="w-9 h-9 rounded-xl overflow-hidden bg-white p-1 border border-slate-700 shrink-0 flex items-center justify-center">
+                <img
+                  src={settings.systemLogo || settings.logoUrl}
+                  alt="Logo"
+                  className="max-h-full max-w-full object-contain"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ) : (
+              <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shadow-emerald-500/20 text-base">
+                {(settings.systemName || settings.pharmacyName || 'P')[0]?.toUpperCase()}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setIsCollapsed(false)}

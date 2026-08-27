@@ -254,7 +254,7 @@ export const ReturnsRefundsReport: React.FC<ReturnsRefundsReportProps> = ({
       const disposition = allRestocked ? 'Restocked' : someRestocked ? 'Partially Restocked' : 'Quarantined / Destroyed';
 
       return [
-        new Date(r.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+        new Date(r.createdAt || r.returnDate || Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
         r.returnNumber || r.id.substring(0, 8),
         r.invoiceNumber || '-',
         r.customerName || 'Walk-in Patient',

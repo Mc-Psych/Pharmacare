@@ -115,3 +115,70 @@ export async function deleteDocFromFirestore(collectionName: string, docId: stri
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+// Purge all non-admin users, prescriptions, purchase orders, sales, returns, vendors from Firestore
+export async function purgeAppCollectionsExceptAdmin(): Promise<void> {
+  try {
+    const batch = writeBatch(db);
+    let deleteCount = 0;
+
+    // 1. Purge non-admin users
+    const usersSnap = await getDocs(collection(db, FirestoreCollections.USERS));
+    usersSnap.forEach(snap => {
+      const data = snap.data() as User;
+      if (data.id !== 'usr-courage-admin' && data.role !== 'admin') {
+        batch.delete(snap.ref);
+        deleteCount++;
+      }
+    });
+
+    // 2. Purge prescriptions
+    const rxSnap = await getDocs(collection(db, FirestoreCollections.PRESCRIPTIONS));
+    rxSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 3. Purge purchase orders
+    const poSnap = await getDocs(collection(db, FirestoreCollections.PURCHASE_ORDERS));
+    poSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 4. Purge sales / payments
+    const salesSnap = await getDocs(collection(db, FirestoreCollections.SALES));
+    salesSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 5. Purge returns
+    const returnsSnap = await getDocs(collection(db, FirestoreCollections.RETURNS));
+    returnsSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 6. Purge suppliers / vendors
+    const supSnap = await getDocs(collection(db, FirestoreCollections.SUPPLIERS));
+    supSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    // 7. Purge saved carts
+    const cartsSnap = await getDocs(collection(db, FirestoreCollections.SAVED_CARTS));
+    cartsSnap.forEach(snap => {
+      batch.delete(snap.ref);
+      deleteCount++;
+    });
+
+    if (deleteCount > 0) {
+      await batch.commit();
+      console.log(`Firestore purge complete. Deleted ${deleteCount} records.`);
+    }
+  } catch (error) {
+    console.warn('Error purging Firestore collections:', error);
+  }
+}

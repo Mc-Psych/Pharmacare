@@ -71,11 +71,11 @@ export const Navbar: React.FC<NavbarProps> = ({
       <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 shadow-xs z-20 shrink-0 gap-4">
         {/* Left side: System Status / Pharmacy Branding Info */}
         <div className="flex items-center space-x-3">
-          {settings.systemLogo && (
+          {(settings.systemLogo || settings.logoUrl) && (
             <div className="w-8 h-8 rounded-lg overflow-hidden border border-slate-200 bg-white p-0.5 shrink-0 flex items-center justify-center">
               <img
-                src={settings.systemLogo}
-                alt="System Logo"
+                src={settings.systemLogo || settings.logoUrl}
+                alt={settings.systemName || settings.pharmacyName || 'System Logo'}
                 className="max-h-full max-w-full object-contain"
                 referrerPolicy="no-referrer"
               />

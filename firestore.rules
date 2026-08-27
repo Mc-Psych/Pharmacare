@@ -138,56 +138,64 @@ service cloud.firestore {
     // Staff accounts & user profiles
     match /users/{userId} {
       allow read: if true;
-      allow write: if isValidId(userId) && isValidUser(incoming());
+      allow create, update: if isValidId(userId) && isValidUser(incoming());
+      allow delete: if isValidId(userId);
     }
 
     // Medicines catalog
     match /medicines/{medicineId} {
       allow read: if true;
-      allow write: if isValidId(medicineId) && isValidMedicine(incoming());
+      allow create, update: if isValidId(medicineId) && isValidMedicine(incoming());
+      allow delete: if isValidId(medicineId);
     }
 
     // Medicine batches (Inventory lots)
     match /batches/{batchId} {
       allow read: if true;
-      allow write: if isValidId(batchId) && isValidBatch(incoming());
+      allow create, update: if isValidId(batchId) && isValidBatch(incoming());
+      allow delete: if isValidId(batchId);
     }
 
     // Therapeutic Categories
     match /categories/{categoryId} {
       allow read: if true;
-      allow write: if isValidId(categoryId) && isValidCategory(incoming());
+      allow create, update: if isValidId(categoryId) && isValidCategory(incoming());
+      allow delete: if isValidId(categoryId);
     }
 
     // Suppliers & Vendors
     match /suppliers/{supplierId} {
       allow read: if true;
-      allow write: if isValidId(supplierId) && isValidSupplier(incoming());
+      allow create, update: if isValidId(supplierId) && isValidSupplier(incoming());
+      allow delete: if isValidId(supplierId);
     }
 
     // Patients & Customers
     match /customers/{customerId} {
       allow read: if true;
-      allow write: if isValidId(customerId) && isValidCustomer(incoming());
+      allow create, update: if isValidId(customerId) && isValidCustomer(incoming());
+      allow delete: if isValidId(customerId);
     }
 
     // Doctor Prescriptions
     match /prescriptions/{prescriptionId} {
       allow read: if true;
-      allow write: if isValidId(prescriptionId) && isValidPrescription(incoming());
+      allow create, update: if isValidId(prescriptionId) && isValidPrescription(incoming());
+      allow delete: if isValidId(prescriptionId);
     }
 
-    // POS Sales & Invoices (Completed financial records cannot be deleted, but unbilled draft/queue orders may be cancelled)
+    // POS Sales & Invoices
     match /sales/{saleId} {
       allow read: if true;
       allow create, update: if isValidId(saleId) && isValidSale(incoming());
-      allow delete: if resource.data.dispenseStatus == 'awaiting_payment';
+      allow delete: if isValidId(saleId);
     }
 
     // Purchase Orders & Inbound Goods
     match /purchaseOrders/{poId} {
       allow read: if true;
-      allow write: if isValidId(poId) && isValidPurchaseOrder(incoming());
+      allow create, update: if isValidId(poId) && isValidPurchaseOrder(incoming());
+      allow delete: if isValidId(poId);
     }
 
     // Stock Adjustments (Reconciliation audit records are append-only)
@@ -221,19 +229,22 @@ service cloud.firestore {
     // Pharmacy Store Settings
     match /settings/{settingsId} {
       allow read: if true;
-      allow write: if isValidId(settingsId) && isValidSettings(incoming());
+      allow create, update: if isValidId(settingsId) && isValidSettings(incoming());
+      allow delete: if false;
     }
 
     // RBAC Permissions Matrix
     match /rbacMatrix/{matrixId} {
       allow read: if true;
-      allow write: if isValidId(matrixId) && isValidRBACMatrix(incoming());
+      allow create, update: if isValidId(matrixId) && isValidRBACMatrix(incoming());
+      allow delete: if false;
     }
 
     // Saved POS Carts
     match /savedCarts/{cartId} {
       allow read: if true;
-      allow write: if isValidId(cartId) && isValidSavedCart(incoming());
+      allow create, update: if isValidId(cartId) && isValidSavedCart(incoming());
+      allow delete: if isValidId(cartId);
     }
   }
 }

@@ -109,7 +109,14 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
             </head>
             <body>
               <div class="text-center">
-                <div class="title">✚ ${settings.pharmacyName}</div>
+                ${settings.systemLogo || settings.logoUrl ? `
+                  <div style="margin-bottom: 4px;">
+                    <img src="${settings.systemLogo || settings.logoUrl}" alt="${settings.pharmacyName}" style="max-height: 42px; max-width: 130px; object-fit: contain;" />
+                  </div>
+                ` : `
+                  <div class="title">✚ ${settings.systemName || settings.pharmacyName}</div>
+                `}
+                <div class="title">${settings.pharmacyName}</div>
                 <div class="sub">${settings.address}</div>
                 <div class="sub">Tel: ${settings.phone} | Lic: ${settings.licenseNumber}</div>
                 ${settings.receiptHeader ? `<div class="sub" style="font-style: italic; margin-top: 2px;">${settings.receiptHeader}</div>` : ''}
@@ -571,9 +578,20 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ sale, settings: prop
           >
             {/* Pharmacy Brand & Header */}
             <div className="text-center pb-4 border-b border-slate-200">
-              <div className="inline-block p-2 bg-emerald-600 text-white font-bold rounded-lg mb-2 text-sm">
-                ✚ PHARMACARE
-              </div>
+              {settings.systemLogo || settings.logoUrl ? (
+                <div className="flex justify-center mb-2">
+                  <img
+                    src={settings.systemLogo || settings.logoUrl}
+                    alt={settings.pharmacyName}
+                    className="max-h-12 max-w-[140px] object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ) : (
+                <div className="inline-block p-2 bg-emerald-600 text-white font-bold rounded-lg mb-2 text-sm">
+                  ✚ {settings.systemName || settings.pharmacyName || 'PHARMACARE'}
+                </div>
+              )}
               <h2 className="text-base font-bold text-slate-900 leading-tight">{settings.pharmacyName}</h2>
               <p className="text-slate-500 text-[11px] mt-0.5">{settings.address}</p>
               <p className="text-slate-500 text-[11px]">Tel: {settings.phone} | Lic: {settings.licenseNumber}</p>

@@ -388,12 +388,85 @@ export function generateReportHtml(options: PrintReportOptions): string {
             border-top: 1px solid #e2e8f0;
             padding-top: 8px;
           }
+
+          /* Standalone Print Toolbar */
+          .standalone-toolbar {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #0f172a;
+            color: #ffffff;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            margin: -16px -16px 20px -16px;
+          }
+          .toolbar-btn {
+            background: #065f46;
+            color: #ffffff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+          }
+          .toolbar-btn:hover {
+            background: #047857;
+          }
+          .toolbar-close-btn {
+            background: #334155;
+            color: #ffffff;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+          }
+
+          @media print {
+            .no-print, .standalone-toolbar {
+              display: none !important;
+            }
+            body {
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+          }
         </style>
       </head>
       <body>
+        <div class="standalone-toolbar no-print">
+          <div style="font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+            <span>📄 ${escapeHtml(title)}</span>
+            <span style="font-size: 10px; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px;">Print Ready</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="toolbar-btn" onclick="window.focus(); window.print();">
+              🖨️ Print Document
+            </button>
+            <button type="button" class="toolbar-close-btn" onclick="window.close();">
+              ✕ Close
+            </button>
+          </div>
+        </div>
+
         <div class="header-container">
           <div class="brand-box">
-            <div class="logo-rx">Rx</div>
+            ${pharmacySettings.systemLogo || pharmacySettings.logoUrl ? `
+              <div style="max-height: 52px; max-width: 120px; display: flex; align-items: center; justify-content: center; background: #ffffff; padding: 2px 6px; border-radius: 8px; border: 1px solid #e2e8f0; margin-right: 12px; shrink-0;">
+                <img src="${pharmacySettings.systemLogo || pharmacySettings.logoUrl}" style="max-height: 48px; max-width: 110px; object-fit: contain;" alt="Brand Logo" />
+              </div>
+            ` : `
+              <div class="logo-rx">Rx</div>
+            `}
             <div>
               <div class="pharmacy-name">${escapeHtml(pharmacyName)}</div>
               <div class="pharmacy-sub">${escapeHtml(address)} • Tel: ${escapeHtml(phone)}</div>
@@ -640,20 +713,16 @@ export function openReportInNewTab(options: PrintReportOptions): void {
 
     const printWindow = window.open(blobUrl, '_blank');
     if (printWindow) {
-      printWindow.onload = () => {
-        try {
-          printWindow.focus();
-          printWindow.print();
-        } catch (e) {
-          console.warn('Auto-print in new window failed:', e);
-        }
-      };
+      printWindow.focus();
     } else {
-      // Fallback: if popup is blocked, open directly
+      // Fallback: if popup is blocked, open directly via anchor click
       const a = document.createElement('a');
       a.href = blobUrl;
       a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
       a.click();
+      setTimeout(() => a.remove(), 1000);
     }
   } catch (e) {
     console.error('Failed to open report in new window:', e);
@@ -661,7 +730,7 @@ export function openReportInNewTab(options: PrintReportOptions): void {
 }
 
 /**
- * Direct print trigger using iframe with multiple fallbacks.
+ * Direct print trigger using iframe with multiple robust fallbacks.
  */
 export function printStructuredReport(options: PrintReportOptions): void {
   try {
@@ -671,13 +740,15 @@ export function printStructuredReport(options: PrintReportOptions): void {
 
     const printIframe = document.createElement('iframe');
     printIframe.id = 'pharmacy-report-print-frame';
+    // Use non-zero offscreen geometry so rendering engines do not discard print layouts
     printIframe.style.position = 'fixed';
-    printIframe.style.right = '0';
-    printIframe.style.bottom = '0';
-    printIframe.style.width = '0';
-    printIframe.style.height = '0';
+    printIframe.style.top = '-9999px';
+    printIframe.style.left = '-9999px';
+    printIframe.style.width = '800px';
+    printIframe.style.height = '1000px';
     printIframe.style.border = 'none';
-    printIframe.style.zIndex = '-9999';
+    printIframe.style.opacity = '0.01';
+    printIframe.style.pointerEvents = 'none';
     document.body.appendChild(printIframe);
 
     const frameDoc = printIframe.contentWindow?.document;
@@ -695,16 +766,16 @@ export function printStructuredReport(options: PrintReportOptions): void {
         printIframe.contentWindow?.focus();
         printIframe.contentWindow?.print();
       } catch (err) {
-        console.warn('Iframe print failed, falling back to new window:', err);
+        console.warn('Iframe print blocked by sandbox, opening new tab:', err);
         openReportInNewTab(options);
       } finally {
         setTimeout(() => {
           if (printIframe && printIframe.parentNode) {
             printIframe.parentNode.removeChild(printIframe);
           }
-        }, 4000);
+        }, 5000);
       }
-    }, 300);
+    }, 350);
   } catch (e) {
     console.error('Print utility failed, falling back to new window:', e);
     openReportInNewTab(options);

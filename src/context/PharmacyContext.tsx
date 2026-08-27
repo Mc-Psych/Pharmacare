@@ -9,6 +9,7 @@ import { db, testConnection, handleFirestoreError, OperationType, ensureAuth } f
 import {
   FirestoreCollections,
   seedInitialFirestoreData,
+  purgeAppCollectionsExceptAdmin,
   syncDoc,
   deleteDocFromFirestore
 } from '../services/firestoreSync';
@@ -351,6 +352,31 @@ const PharmacyContext = createContext<PharmacyContextType | undefined>(undefined
 
 const LOCAL_STORAGE_PREFIX = 'pharmacare_pms_';
 
+// Safe localStorage persistence helper to prevent QuotaExceededError crashes
+const safeSetItem = (key: string, data: unknown) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_PREFIX + key, JSON.stringify(data));
+  } catch (err) {
+    console.warn(`[Storage] Storage quota limit reached while saving key "${key}". Applying cleanup.`, err);
+    try {
+      if (key === 'settings' && data && typeof data === 'object') {
+        // If settings failed, strip large logo data from localStorage (it persists in Firestore & memory)
+        const lightweightSettings = { ...(data as Record<string, unknown>), systemLogo: '', logoUrl: '' };
+        localStorage.setItem(LOCAL_STORAGE_PREFIX + key, JSON.stringify(lightweightSettings));
+        return;
+      }
+      // Free non-critical cached collections from localStorage
+      localStorage.removeItem(LOCAL_STORAGE_PREFIX + 'auditLogs');
+      localStorage.removeItem(LOCAL_STORAGE_PREFIX + 'userNotifications');
+      localStorage.removeItem(LOCAL_STORAGE_PREFIX + 'stockAdjustments');
+      // Retry saving once
+      localStorage.setItem(LOCAL_STORAGE_PREFIX + key, JSON.stringify(data));
+    } catch {
+      // Gracefully prevent QuotaExceededError from interrupting React rendering
+    }
+  }
+};
+
 export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   // Load state from localStorage or initialize with seed data
   const loadState = <T,>(key: string, defaultVal: T): T => {
@@ -372,30 +398,31 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const [settings, setSettings] = useState<PharmacySettings>(() => {
     const loaded = loadState<PharmacySettings>('settings', initialSettings);
-    // Ensure Ghana Cedi is standard default if previously configured as USD or empty
-    if (!loaded.currencySymbol || loaded.currencySymbol === '$' || loaded.currencyCode === 'USD') {
+    // Ensure standard Ghana phone format and Cedi currency
+    const phone = (!loaded.phone || loaded.phone.includes('+1') || loaded.phone.includes('234-8900') || loaded.phone.includes('555 8900'))
+      ? '+233 024 174 4004'
+      : loaded.phone;
+    if (!loaded.currencySymbol || loaded.currencySymbol === '$' || loaded.currencyCode === 'USD' || loaded.phone !== phone) {
       return {
         ...loaded,
         currencySymbol: 'GH₵',
         currencyCode: 'GHS',
-        address: loaded.address.includes('Metro City') ? 'Ring Road Central, Adabraka, Accra, Ghana' : loaded.address,
-        phone: loaded.phone.includes('+1') ? '+233 24 555 8900' : loaded.phone,
+        address: loaded.address?.includes('Metro City') ? 'Ring Road Central, Adabraka, Accra, Ghana' : (loaded.address || initialSettings.address),
+        phone,
       };
     }
     return loaded;
   });
   const [users, setUsers] = useState<User[]>(() => {
     const loaded = loadState<User[]>('users', initialUsers);
-    const existingIds = new Set(loaded.map(u => u.id));
-    const missing = initialUsers.filter(u => !existingIds.has(u.id));
-    return missing.length > 0 ? [...loaded, ...missing] : (loaded.length > 0 ? loaded : initialUsers);
+    const filtered = loaded.filter(u => u.id === 'usr-courage-admin' || u.role === 'admin');
+    return filtered.length > 0 ? filtered : initialUsers;
   });
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => loadState('isAuthenticated', true));
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const savedUser = loadState<User | null>('currentUser', null);
-    if (savedUser) {
-      const match = initialUsers.find(u => u.id === savedUser.id) || savedUser;
-      return match;
+    if (savedUser && (savedUser.id === 'usr-courage-admin' || savedUser.role === 'admin')) {
+      return initialUsers.find(u => u.id === savedUser.id) || savedUser;
     }
     return initialUsers[0];
   });
@@ -414,7 +441,8 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   });
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
     const loaded = loadState<Supplier[]>('suppliers', initialSuppliers);
-    return loaded.length > 0 ? loaded : initialSuppliers;
+    const legacySupplierIds = ['sup-ernest-chem', 'sup-kinapharma', 'sup-letap', 'sup-danadams'];
+    return loaded.filter(s => !legacySupplierIds.includes(s.id));
   });
   const [customers, setCustomers] = useState<Customer[]>(() => {
     const loaded = loadState<Customer[]>('customers', initialCustomers);
@@ -422,19 +450,21 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   });
   const [prescriptions, setPrescriptions] = useState<Prescription[]>(() => {
     const loaded = loadState<Prescription[]>('prescriptions', initialPrescriptions);
-    return loaded.length > 0 ? loaded : initialPrescriptions;
+    const legacyRxIds = ['rx-2026-001', 'rx-2026-002'];
+    return loaded.filter(p => !legacyRxIds.includes(p.id));
   });
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
     const loaded = loadState<PurchaseOrder[]>('purchaseOrders', initialPurchaseOrders);
-    return loaded.length > 0 ? loaded : initialPurchaseOrders;
+    const legacyPoIds = ['po-2026-01', 'po-2026-02'];
+    return loaded.filter(p => !legacyPoIds.includes(p.id));
   });
   const [sales, setSales] = useState<Sale[]>(() => {
     const loaded = loadState<Sale[]>('sales', initialSales);
-    return loaded.length > 0 ? loaded : initialSales;
+    return loaded.filter(s => !s.id.startsWith('sale-gh-'));
   });
   const [returns, setReturns] = useState<ReturnOrder[]>(() => {
     const loaded = loadState<ReturnOrder[]>('returns', initialReturns);
-    return loaded.length > 0 ? loaded : initialReturns;
+    return loaded.filter(r => !r.id.startsWith('ret-gh-'));
   });
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => loadState('stockAdjustments', initialStockAdjustments));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => loadState('auditLogs', initialAuditLogs));
@@ -445,40 +475,44 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
   const [rbacMatrix, setRbacMatrix] = useState<RBACMatrix>(() => loadState('rbacMatrix', initialRBACMatrix));
   const [savedCarts, setSavedCarts] = useState<SavedCart[]>(() => loadState('savedCarts', []));
 
-  // Sync to localStorage
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'settings', JSON.stringify(settings)); }, [settings]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'users', JSON.stringify(users)); }, [users]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'isAuthenticated', JSON.stringify(isAuthenticated)); }, [isAuthenticated]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'currentUser', JSON.stringify(currentUser)); }, [currentUser]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'categories', JSON.stringify(categories)); }, [categories]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'medicines', JSON.stringify(medicines)); }, [medicines]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'batches', JSON.stringify(batches)); }, [batches]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'suppliers', JSON.stringify(suppliers)); }, [suppliers]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'customers', JSON.stringify(customers)); }, [customers]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'prescriptions', JSON.stringify(prescriptions)); }, [prescriptions]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'purchaseOrders', JSON.stringify(purchaseOrders)); }, [purchaseOrders]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'sales', JSON.stringify(sales)); }, [sales]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'returns', JSON.stringify(returns)); }, [returns]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'stockAdjustments', JSON.stringify(stockAdjustments)); }, [stockAdjustments]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'auditLogs', JSON.stringify(auditLogs)); }, [auditLogs]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'readNotificationIds', JSON.stringify(readNotificationIds)); }, [readNotificationIds]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'dismissedNotificationIds', JSON.stringify(dismissedNotificationIds)); }, [dismissedNotificationIds]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'userNotifications', JSON.stringify(userNotifications)); }, [userNotifications]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'rbacMatrix', JSON.stringify(rbacMatrix)); }, [rbacMatrix]);
-  useEffect(() => { localStorage.setItem(LOCAL_STORAGE_PREFIX + 'savedCarts', JSON.stringify(savedCarts)); }, [savedCarts]);
+  // Sync to localStorage safely
+  useEffect(() => { safeSetItem('settings', settings); }, [settings]);
+  useEffect(() => { safeSetItem('users', users); }, [users]);
+  useEffect(() => { safeSetItem('isAuthenticated', isAuthenticated); }, [isAuthenticated]);
+  useEffect(() => { safeSetItem('currentUser', currentUser); }, [currentUser]);
+  useEffect(() => { safeSetItem('categories', categories); }, [categories]);
+  useEffect(() => { safeSetItem('medicines', medicines); }, [medicines]);
+  useEffect(() => { safeSetItem('batches', batches); }, [batches]);
+  useEffect(() => { safeSetItem('suppliers', suppliers); }, [suppliers]);
+  useEffect(() => { safeSetItem('customers', customers); }, [customers]);
+  useEffect(() => { safeSetItem('prescriptions', prescriptions); }, [prescriptions]);
+  useEffect(() => { safeSetItem('purchaseOrders', purchaseOrders); }, [purchaseOrders]);
+  useEffect(() => { safeSetItem('sales', sales); }, [sales]);
+  useEffect(() => { safeSetItem('returns', returns); }, [returns]);
+  useEffect(() => { safeSetItem('stockAdjustments', stockAdjustments); }, [stockAdjustments]);
+  useEffect(() => { safeSetItem('auditLogs', auditLogs); }, [auditLogs]);
+  useEffect(() => { safeSetItem('readNotificationIds', readNotificationIds); }, [readNotificationIds]);
+  useEffect(() => { safeSetItem('dismissedNotificationIds', dismissedNotificationIds); }, [dismissedNotificationIds]);
+  useEffect(() => { safeSetItem('userNotifications', userNotifications); }, [userNotifications]);
+  useEffect(() => { safeSetItem('rbacMatrix', rbacMatrix); }, [rbacMatrix]);
+  useEffect(() => { safeSetItem('savedCarts', savedCarts); }, [savedCarts]);
 
   // Real-time Cloud Firestore synchronization & initial seeding
   useEffect(() => {
     // 1. Establish auth session, test connection, and seed initial Firestore data if needed
     ensureAuth().then(() => {
       testConnection().then(() => {
-        seedInitialFirestoreData(initialRBACMatrix);
+        seedInitialFirestoreData(initialRBACMatrix).then(() => {
+          purgeAppCollectionsExceptAdmin();
+        });
       }).catch(err => {
         console.warn('Firestore initialization notice:', err);
       });
     }).catch(() => {
       testConnection().then(() => {
-        seedInitialFirestoreData(initialRBACMatrix);
+        seedInitialFirestoreData(initialRBACMatrix).then(() => {
+          purgeAppCollectionsExceptAdmin();
+        });
       }).catch(err => {
         console.warn('Firestore initialization notice:', err);
       });
@@ -488,11 +522,23 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     const unsubUsers = onSnapshot(collection(db, FirestoreCollections.USERS), snapshot => {
       if (!snapshot.empty) {
         const loadedUsers = snapshot.docs.map(d => d.data() as User);
-        setUsers(loadedUsers);
-        // Ensure current active user updates in session if modified
+        const adminUsers = loadedUsers.filter(u => u.id === 'usr-courage-admin' || u.role === 'admin');
+        setUsers(adminUsers.length > 0 ? adminUsers : initialUsers);
+
+        // Purge any lingering non-admin users from Firestore
+        loadedUsers.forEach(u => {
+          if (u.id !== 'usr-courage-admin' && u.role !== 'admin') {
+            deleteDocFromFirestore(FirestoreCollections.USERS, u.id).catch(() => {});
+          }
+        });
+
+        // Ensure current active user remains Admin
         setCurrentUser(curr => {
-          const match = loadedUsers.find(u => u.id === curr.id);
-          return match || curr;
+          if (curr.role !== 'admin' && curr.id !== 'usr-courage-admin') {
+            return initialUsers[0];
+          }
+          const match = adminUsers.find(u => u.id === curr.id);
+          return match || initialUsers[0];
         });
       }
     }, error => handleFirestoreError(error, OperationType.GET, FirestoreCollections.USERS));
@@ -500,7 +546,14 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
     const unsubSettings = onSnapshot(collection(db, FirestoreCollections.SETTINGS), snapshot => {
       const globalDoc = snapshot.docs.find(d => d.id === 'global');
       if (globalDoc) {
-        setSettings(globalDoc.data() as PharmacySettings);
+        const data = globalDoc.data() as PharmacySettings;
+        if (data.phone?.includes('+1') || data.phone?.includes('234-8900') || data.phone?.includes('555 8900')) {
+          const updated = { ...data, phone: '+233 024 174 4004' };
+          setSettings(updated);
+          syncDoc(FirestoreCollections.SETTINGS, 'global', updated).catch(() => {});
+        } else {
+          setSettings(data);
+        }
       }
     }, error => handleFirestoreError(error, OperationType.GET, FirestoreCollections.SETTINGS));
 
@@ -623,11 +676,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const saveEntireRBACMatrix = (newMatrix: RBACMatrix) => {
     setRbacMatrix(newMatrix);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_PREFIX + 'rbacMatrix', JSON.stringify(newMatrix));
-    } catch (e) {
-      console.error('Failed to persist RBAC matrix to localStorage', e);
-    }
+    safeSetItem('rbacMatrix', newMatrix);
     syncDoc(FirestoreCollections.RBAC_MATRIX, 'global', { matrix: newMatrix, updatedAt: new Date().toISOString() }).catch(console.error);
     addAuditLog({
       module: 'users',
@@ -638,11 +687,7 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const resetRBACMatrix = () => {
     setRbacMatrix(initialRBACMatrix);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_PREFIX + 'rbacMatrix', JSON.stringify(initialRBACMatrix));
-    } catch (e) {
-      console.error('Failed to reset RBAC matrix in localStorage', e);
-    }
+    safeSetItem('rbacMatrix', initialRBACMatrix);
     syncDoc(FirestoreCollections.RBAC_MATRIX, 'global', { matrix: initialRBACMatrix, updatedAt: new Date().toISOString() }).catch(console.error);
     addAuditLog({
       module: 'users',
