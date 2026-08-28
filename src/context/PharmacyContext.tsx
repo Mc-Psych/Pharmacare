@@ -1031,6 +1031,14 @@ export const PharmacyProvider: React.FC<{ children: ReactNode }> = ({ children }
       action: 'SETTINGS_UPDATE',
       details: 'Updated pharmacy configuration settings',
     });
+
+    addNotification({
+      title: 'Configuration Saved Successfully',
+      message: 'System settings, pharmacy branding, and operational rules have been updated and synchronized.',
+      type: 'success',
+      module: 'system',
+      linkTab: 'settings',
+    });
   };
 
   // Medicine Management

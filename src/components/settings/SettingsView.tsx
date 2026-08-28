@@ -76,6 +76,16 @@ export const SettingsView: React.FC = () => {
   });
 
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveSuccessDetails, setSaveSuccessDetails] = useState<{
+    timestamp: string;
+    systemName: string;
+    currency: string;
+    taxRate: number;
+    logoAttached: boolean;
+    signatureAttached: boolean;
+  } | null>(null);
   const [backupMsg, setBackupMsg] = useState('');
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState('');
@@ -140,11 +150,28 @@ export const SettingsView: React.FC = () => {
     }));
   }, [settings]);
 
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveSettings = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSaving(true);
     updateSettings(formData);
-    setSaveSuccessMsg('System brand identity and configuration saved successfully.');
-    setTimeout(() => setSaveSuccessMsg(''), 4500);
+    const nowStr = new Date().toLocaleTimeString();
+    setSaveSuccessDetails({
+      timestamp: nowStr,
+      systemName: formData.systemName || 'PharmaCare PMS',
+      currency: formData.currencySymbol || 'GH₵',
+      taxRate: formData.taxRatePercent || 0,
+      logoAttached: Boolean(formData.systemLogo || formData.logoUrl),
+      signatureAttached: Boolean(formData.superintendentSignatureUrl || formData.signatureURL || formData.signatureUrl),
+    });
+    setSaveSuccessMsg(`System configurations & brand settings saved successfully at ${nowStr}.`);
+    setIsSaving(false);
+    setIsSaved(true);
+    setTimeout(() => {
+      setIsSaved(false);
+    }, 4500);
+    setTimeout(() => {
+      setSaveSuccessMsg('');
+    }, 7000);
   };
 
   const handleLogoSizeChange = (newSize: number) => {
@@ -456,13 +483,78 @@ export const SettingsView: React.FC = () => {
             <Download className="w-4 h-4 mr-1.5 text-indigo-600" />
             Export Backup (.json)
           </button>
+          <button
+            type="button"
+            onClick={() => handleSaveSettings()}
+            disabled={isSaving}
+            className={`inline-flex items-center px-4 py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer shadow-xs ${
+              isSaved
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+            }`}
+          >
+            {isSaved ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 mr-1.5 text-white" />
+                Configuration Saved!
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-1.5 text-white" />
+                Save Changes
+              </>
+            )}
+          </button>
         </div>
       </div>
 
+      {/* Success Notification Banner */}
       {saveSuccessMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-in fade-in duration-200 shadow-xs">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>{saveSuccessMsg}</span>
+        <div className="p-4 sm:p-5 bg-emerald-50 border border-emerald-200 rounded-3xl text-emerald-950 text-xs shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start space-x-3">
+              <div className="w-9 h-9 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 mt-0.5 shadow-2xs">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center space-x-2">
+                  <h4 className="font-bold text-sm text-emerald-950">System Configuration Successfully Updated</h4>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Live • {saveSuccessDetails?.timestamp || 'Applied'}
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-800">
+                  Pharmacy branding, currency symbol, tax rules, superintendent signature, and operational thresholds have been saved to local state and synchronized with Cloud Firestore.
+                </p>
+                {saveSuccessDetails && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className="px-2.5 py-1 rounded-xl bg-white/90 border border-emerald-200 font-semibold text-[11px] text-emerald-900 shadow-2xs">
+                      Facility: <strong className="text-slate-900">{saveSuccessDetails.systemName}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-xl bg-white/90 border border-emerald-200 font-semibold text-[11px] text-emerald-900 shadow-2xs">
+                      Currency: <strong className="text-slate-900">{saveSuccessDetails.currency}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-xl bg-white/90 border border-emerald-200 font-semibold text-[11px] text-emerald-900 shadow-2xs">
+                      Tax: <strong className="text-slate-900">{saveSuccessDetails.taxRate}%</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-xl bg-white/90 border border-emerald-200 font-semibold text-[11px] text-emerald-900 shadow-2xs">
+                      Logo: <strong className="text-slate-900">{saveSuccessDetails.logoAttached ? 'Configured' : 'Default'}</strong>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-xl bg-white/90 border border-emerald-200 font-semibold text-[11px] text-emerald-900 shadow-2xs">
+                      Superintendent Signature: <strong className="text-slate-900">{saveSuccessDetails.signatureAttached ? 'Attached' : 'None'}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSaveSuccessMsg('')}
+              className="text-emerald-700 hover:text-emerald-950 p-1.5 rounded-xl hover:bg-emerald-100 transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1186,14 +1278,42 @@ export const SettingsView: React.FC = () => {
         </div>
 
         {/* Save Button */}
-        <div className="flex items-center justify-end space-x-3 pt-2">
-          <button
-            type="submit"
-            className="inline-flex items-center px-6 py-3 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-2xl shadow-md transition-all cursor-pointer"
-          >
-            <Save className="w-4 h-4 mr-2" />
-            Save Brand & Configuration Changes
-          </button>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+          <div className="text-xs text-slate-500 flex items-center space-x-2">
+            {isSaved ? (
+              <span className="inline-flex items-center text-emerald-800 font-bold bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-200 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600 shrink-0" />
+                <span>Configuration changes saved and active ({saveSuccessDetails?.timestamp || 'Just now'})</span>
+              </span>
+            ) : (
+              <span className="text-slate-500 text-xs">
+                Saving updates brand identity, currency, taxes, and security parameters across all stations.
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-3 shrink-0 w-full sm:w-auto">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className={`w-full sm:w-auto inline-flex items-center justify-center px-7 py-3 text-xs font-bold rounded-2xl shadow-md transition-all cursor-pointer ${
+                isSaved
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+              }`}
+            >
+              {isSaved ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2 text-white" />
+                  Changes Saved Successfully!
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Brand & Configuration Changes
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </form>
 
@@ -1457,6 +1577,29 @@ export const SettingsView: React.FC = () => {
               className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-2xl shadow-md transition-colors cursor-pointer"
             >
               Acknowledge & Continue
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Floating Success Confirmation Badge */}
+      {isSaved && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center space-x-3.5 max-w-md">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-md">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h5 className="text-xs font-bold text-white">Configurations Saved & Synced</h5>
+              <p className="text-[11px] text-slate-300 truncate">
+                Updated brand, tax, currency, and pharmacy settings live across the system.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsSaved(false)}
+              className="text-slate-400 hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
